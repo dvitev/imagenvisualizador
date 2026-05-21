@@ -1,0 +1,31 @@
+{
+  "name": "imagenvisualizador-server",
+  "version": "1.0.0",
+  "description": "Backend para visor de imágenes de alto rendimiento",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "test": "node --experimental-vm-modules node_modules/vitest/vitest.mjs run"
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-basic-auth": "^1.2.1",
+    "express-rate-limit": "^7.1.5",
+    "pino": "^8.17.2",
+    "pino-pretty": "^10.2.3",
+    "sharp": "^0.33.1",
+    "unzipper": "^0.10.14",
+    "ws": "^8.16.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.7"
+  }
+}

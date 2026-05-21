@@ -1,0 +1,53 @@
+
+services:
+  # Backend API Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: manga-reader-server
+    restart: unless-stopped
+    volumes:
+      # Mount your images directory (read-only for security)
+      # Windows: usar formato D:/ruta o /c/ruta
+      - ${IMAGES_DIR}:/data:ro
+    env_file:
+      - .env
+    environment:
+      - IMAGES_DIR=/data
+      - PORT=3001
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+    networks:
+      - manga-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3001/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Frontend Client (Nginx)
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: manga-reader-client
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      server:
+        condition: service_healthy
+    networks:
+      - manga-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+networks:
+  manga-network:
+    driver: bridge
