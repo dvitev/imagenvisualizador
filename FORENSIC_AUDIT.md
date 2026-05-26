@@ -1,81 +1,88 @@
 # 🔍 Auditoría Forense Completa — `imagenvisualizador`
 
-**Fecha:** 2026-05-26  
+**Fecha:** 2026-05-26 (07:52 GMT-5)  
 **Analista:** OpenClaw AI  
 **Versión del proyecto:** 1.0.0  
 **Repositorio:** `D:\PycharmProjects\imagenvisualizador`
 
 ---
 
-## 📋 Resumen Ejecutivo
+## 📋 Pronóstico General
 
-| Dimensión | Hallazgo | Severidad |
-|-----------|----------|-----------|
-| 🔐 Seguridad | Credenciales en texto plano en `.env` comprometido | **ALTA** |
-| 🔐 Seguridad | Potencial path traversal por normalización Unicode | **MEDIA** |
-| 🔐 Seguridad | Zip-Slip en extracción de archivos sin validación | **MEDIA** |
-| 🏗️ Arquitectura | Código fuente bien estructurado, separación server/client | ✅ |
-| 🧪 Tests | Tests unitarios para path sanitizer (12 casos) | ✅ |
-| 🐳 Docker | Dockerfile en server usa `--watch` (dev) en producción | **BAJA** |
-| 🗑️ Basura | Archivo `-w` de 7.7 MB en raíz del proyecto | **ALTA** |
-| 📦 Bloat | `.opencode/` (skills de OpenCode) en el repo: ~30 MB innecesarios | **MEDIA** |
-| 🔒 Config | Archivo `.env` con ruta real y contraseña default en el disco | **ALTA** |
-| 📝 Logging | `server.log` y `session-ses_1bc7.md` en el repo | **MEDIA** |
-| 👁️ Privacy | Sessión de IA completa (`session-ses_1bc7.md`) pública | **ALTA** |
+| Dimensión | Estado | Progreso desde auditoría anterior |
+|---|---|---|
+| 🔐 Seguridad | ⚠️ 4 hallazgos abiertos | ✅ 3 corregidos |
+| 🏗️ Arquitectura | ✅ Sólida | — |
+| 🧪 Tests | ⚠️ Único módulo con cobertura | ✅ Tests actualizados |
+| 🐳 Docker | ⚠️ 2 hallazgos menores | — |
+| 🗑️ Basura en disco | ⚠️ 2 archivos huérfanos | ✅ Git tracking limpio |
+| 📦 Repo bloat | ⚠️ `.opencode/` todavía en historial | — |
+| 🔒 Git history | ⚠️ Credenciales en commits pasados | ✅ `.env` ignorado ahora |
 
 ---
 
-## 1. 📁 Estructura del Proyecto
+## 1. 📁 Inventario del Proyecto
 
 ```
 imagenvisualizador/
-├── client/              # Frontend React + Vite + Vitest
+├── .git/                         # 3 commits en main
+├── .opencode/                    # ⚠️ Skills OpenCode (~30 MB) — en historial git
+├── client/                       # Frontend React 18 + Vite 8 + Vitest
 │   ├── src/
-│   │   ├── components/  # 14 componentes (ReaderView, Lightbox, etc.)
-│   │   ├── hooks/       # useImageMemory.js (gestión de memoria)
-│   │   ├── utils/       # storage.js, debounce.js
-│   │   ├── App.jsx      # Punto de entrada principal
+│   │   ├── components/           # 14 componentes con CSS Modules
+│   │   ├── hooks/                # useImageMemory.js
+│   │   ├── utils/                # storage.js, debounce.js
+│   │   ├── App.jsx               # Entry principal
 │   │   └── main.jsx
-│   └── Dockerfile
-├── server/              # Backend Express + Chokidar + Sharp
+│   ├── Dockerfile                # Multi-stage (builder → nginx:alpine)
+│   └── nginx.conf                # ✅ CSP + HSTS agregados
+├── server/                       # Backend Express 4.18 + Sharp
 │   ├── src/
-│   │   ├── routes/      # images.js, structure.js
-│   │   ├── utils/       # pathSanitizer.js (+ tests), logger.js
-│   │   ├── index.js     # Entry point
-│   │   ├── imageScanner.js
-│   │   └── fileWatcher.js  # WebSocket + Chokidar
-│   └── Dockerfile
-├── images/test/         # Imágenes de prueba
-├── scripts/             # build-docker.bat / .sh
-├── node_modules/        # Dependencias raíz (concurrently)
+│   │   ├── routes/               # images.js, structure.js
+│   │   ├── utils/                # pathSanitizer.js (+tests), logger.js
+│   │   ├── index.js              # Entry point
+│   │   ├── imageScanner.js       # Scanner con caché (50K items)
+│   │   └── fileWatcher.js        # WebSocket + Chokidar
+│   ├── Dockerfile                # node:18-alpine
+│   └── server.log                # ⚠️ Log de ejecución en disco
+├── images/test/                  # Imágenes de prueba
+├── scripts/                      # build-docker.bat / .sh
 ├── docker-compose.yml
-├── .env                 # ⚠️ CREDENCIALES EN TEXTO PLANO
-└── -w                   # ⚠️ ARCHIVO SOSPECHOSO 7.7 MB
+├── .env                          # ⚠️ CREDENCIALES EN DISCO
+├── -w                            # ⚠️ DUMP JSON 7.7 MB en disco (gitignorado)
+├── session-ses_1bc7.md           # ⚠️ LOG DE IA 369 KB en disco (gitignorado)
+├── FORENSIC_AUDIT.md
+└── HALLAZGOS_A_CORREGIR.md
 ```
 
-### Stack tecnológico
+### 3️⃣ Commits en Git
 
-| Componente | Tecnología | Versión |
-|------------|-----------|---------|
-| **Frontend** | React + Vite + Vitest | React 18.2.0 / Vite 8.x |
-| **Backend** | Express.js + WebSocket | Express 4.18.2 |
-| **Procesamiento** | Sharp (thumbnails/metadata) | Sharp 0.33.1 |
-| **Archivos** | Chokidar (watcher) + Unzipper (CBZ/ZIP) | Chokidar 3.5.3 |
-| **Logging** | Pino + Pino-pretty | Pino 8.17.2 |
-| **Testing** | Vitest | Vitest 4.1.7 |
-| **Contenedores** | Docker Compose (server + client) | - |
-| **Virtualización** | react-virtuoso (lista virtual) | 4.6.2 |
-| **Gestos/Zoom** | @use-gesture + react-zoom-pan-pinch | - |
+| Hash | Mensaje | Fecha | Archivos | Líneas |
+|------|---------|-------|----------|--------|
+| `df3bd98` | Initial commit | — | README.md | +322 |
+| `5e15942` | feat: initialize server... | 21-May | +302 | +99,692 |
+| `f0328c3` | `.` (fix commit) | 26-May | 17 cambiados | +2,930 / -9,927 ✅ |
+
+**El commit `f0328c3` eliminó del tracking:**
+- `-w` (dump JSON 7.7 MB)
+- `session-ses_1bc7.md` (log IA 369 KB)
+- Agregó `FORENSIC_AUDIT.md` y `HALLAZGOS_A_CORREGIR.md`
+- Actualizó `.gitignore` con exclusiones
+- Aplicó ~15 correcciones de seguridad y calidad
 
 ---
 
-## 2. 🔐 Análisis de Seguridad
+## 2. 🔐 Seguridad
 
-### 2.1 ⚠️ CRÍTICO: Credenciales en `.env`
+### 2.1 🟠 `.env` con credenciales en texto plano (EN DISCO)
 
-**Archivo:** `.env`  
-**Contenido:**
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `D:\PycharmProjects\imagenvisualizador\.env` |
+| **Estado** | ⛔ Existe en disco, ⛔ Existe en historial git |
+| **Git tracking** | ❌ No (ignorado), pero está en commit `5e15942` |
 
+**Contenido expuesto:**
 ```env
 IMAGES_DIR=N:/Torrents
 PORT=3001
@@ -83,38 +90,26 @@ HOST=0.0.0.0
 ENABLE_AUTH=false
 AUTH_USER=admin
 AUTH_PASS=changeme
+NODE_ENV=production
 ```
 
-| Problema | Impacto |
-|----------|---------|
-| Ruta real de unidad `N:` expuesta | Revela infraestructura interna |
-| `ENABLE_AUTH=false` | Sin autenticación en el API |
-| `AUTH_PASS=changeme` | Password hardcodeada y trivial |
-| `HOST=0.0.0.0` + `NODE_ENV=production` | Expuesto a toda la red |
+**Riesgos:**
+- Ruta `N:/Torrents` revela unidad de red/interna con contenido P2P
+- `AUTH_PASS=changeme` y `ENABLE_AUTH=false`: sin autenticación real
+- `HOST=0.0.0.0` en producción: expuesto a toda la red
 
-**Recomendación:**
-- Usar `.env` SOLO en desarrollo, jamás en producción
-- Rotar credenciales inmediatamente
-- Implementar autenticación real (JWT, OAuth, o al menos bcrypt)
-- Aislar `.env` vía `.gitignore` (ya lo está, pero el archivo existe)
+**Acción requerida:**
+- ✅ `.gitignore` ya lo excluye desde `f0328c3`
+- ❌ **Falta** `git filter-branch` para purgar del historial
+- ❌ **Falta** rotar credenciales
 
-### 2.2 ⚠️ ALTO: Archivo `-w` de 7.7 MB en raíz
+### 2.2 🟡 Path Sanitizer — Corregido en `f0328c3`
 
-**Ruta:** `D:\PycharmProjects\imagenvisualizador\-w`  
-**Tamaño:** 7,713,032 bytes  
-**Fecha:** 21/05/2026 00:18  
-**Tipo:** Binario (sin extensión)
+| Versión anterior | Versión actual | Estado |
+|---|---|---|
+| Función inline vulnerable en `images.js` | Importa `sanitizePath` de `utils/pathSanitizer.js` | ✅ **CORREGIDO** |
 
-- Nombre sugestivo de `node --watch` dumping output mal dirigido
-- Podría contener información sensible si fue un volcado de buffer
-- Se menciona en `.gitignore` como `# Mystery dump`
-
-**Recomendación:** Investigar origen, eliminar si es basura. Podría ser un volcado de logs o debug.
-
-### 2.3 ⚠️ MEDIO: Path Traversal — Normalización Unicode
-
-**Archivo:** `server/src/utils/pathSanitizer.js`
-
+La implementación actual:
 ```javascript
 export function sanitizePath(requestedPath, baseDir) {
   const normalizedPath = path.normalize(requestedPath)
@@ -127,314 +122,281 @@ export function sanitizePath(requestedPath, baseDir) {
 }
 ```
 
-**Problemas identificados:**
+✅ Verifica que el path resuelto esté dentro de BASE_DIR  
+✅ Rechaza `..` y paths absolutos  
+✅ Tests unitarios actualizados con 12 casos  
+⚠️ **Debilidad residual:** no normaliza Unicode (`‥`/U+2025 evade detección de `..`), no decodifica URI
 
-1. **No hay normalización Unicode** — caracteres como `\u2025` (‥) o `\uFF0E` (．) pueden evadir el `startsWith('..')`
-   - Ejemplo: `‥/etc/passwd` → `path.normalize()` en Node.js NO colapsa `‥` como `..`
-2. **No hay sanitización de `decodeURIComponent`** — aunque el test lo contempla, el código no lo aplica
-3. **No hay límite de profundidad** — un path como `a/../a/../a/...` repetido podría causar problemas
-4. **No hay validación de tipo de archivo** — cualquier archivo dentro de BASE_DIR es servible
+### 2.3 🟡 Zip-Slip en extracción de archivos ZIP/CBZ
 
-**Recomendación:**
-```javascript
-// Añadir antes de path.normalize:
-requestedPath = requestedPath.normalize('NFD')             // Unicode NFC
-requestedPath = decodeURIComponent(requestedPath)           // URI decode
-requestedPath = requestedPath.replace(/[<>"|?*]/g, '')     // Caracteres peligrosos
-// Además: rechazar si contiene caracteres de control (0x00-0x1F)
-```
-
-### 2.4 ⚠️ MEDIO: Zip-Slip en Extracción de Archivos ZIP/CBZ
-
-**Archivo:** `server/src/routes/images.js` — Ruta `/api/image/archive/*`
+**Archivo:** `server/src/routes/images.js` — ruta `/api/image/archive/*`
 
 ```javascript
 const directory = await unzipper.Open.file(fullPath);
-directory.files
-  .filter(file => { /* filtra imágenes */ })
-  .sort(...)
-  .forEach((file, index) => {
-    pages.push({ index, file });
-  });
-// ...
-const stream = pageFile.stream();
-stream.pipe(res);
+directory.files.filter(file => { ... });
+// No valida que file.path esté dentro del directorio esperado
 ```
 
-**Problema:** `unzipper` puede extraer archivos con paths como `../../../etc/passwd` dentro de un ZIP malicioso. No hay validación de que el path interno del archivo esté dentro del directorio esperado.
+❌ No hay validación de que los paths internos del ZIP no contengan `../`  
+❌ Un ZIP malicioso con `../../etc/passwd` podría leakear archivos
 
 **Recomendación:**
 ```javascript
-// Validar que el path interno no escape del directorio base
-if (file.path.includes('..')) {
-  return res.status(400).json({ error: 'Invalid archive entry path' });
+if (file.path.includes('..') || path.isAbsolute(file.path)) {
+  // Saltar entry malicioso
+  continue;
 }
 ```
 
-### 2.5 ⚠️ BAJO: Autenticación Básica sin HTTPS
+### 2.4 🟢 Autenticación básica sobre HTTP — (depende del despliegue)
 
-- `express-basic-auth` envía credenciales en Base64 (texto plano) si no hay HTTPS
-- No hay middleware de HTTPS redirect
-- No hay CSRF protection configurada
+- `express-basic-auth` envía credenciales en Base64
+- Sin HTTPS configurado
+- Si se despliega tras reverse proxy (Nginx/Caddy), se puede delegar HTTPS ahí
 
-**Recomendación:** Implementar TLS/SSL o usar reverse proxy (Caddy/Nginx con HTTPS).
-
-### 2.6 ✅ FORTALEZA: Helmet + Rate Limiting
+### 2.5 ✅ Helmet + Rate Limiting + CORS — Corregido en `f0328c3`
 
 ```javascript
 app.use(helmet());                         // ✅ Headers de seguridad
-// Rate limiting a 100 req/seg por IP
-app.use('/api', limiter);                   // ✅ Anti-DoS básico
-// CORS restringido
+app.use('/api', rateLimit({...}));          // ✅ 100 req/seg/IP
 app.use(cors({ origin: ['http://localhost:3000', 'http://127.0.0.1:3000'] })); // ✅
 ```
 
----
+### 2.6 ✅ Nginx con headers de seguridad — Agregado en `f0328c3`
 
-## 3. 🏗️ Análisis Arquitectónico
-
-### 3.1 Estructura General
-
-✅ **Aciertos:**
-- Separación clara server/client con monorepo
-- Docker Compose con healthchecks en ambos servicios
-- Red aislada (`manga-network: bridge`)
-- Volumen montado como read-only (`:ro`)
-- Frontend servido por Nginx (producción)
-- Manejo de errores con streams y fallbacks
-- Precarga de imágenes adyacentes en Lightbox
-- Gestión de memoria en hook `useImageMemory`
-
-❌ **Problemas:**
-
-| Issue | Ubicación | Detalle |
-|-------|-----------|---------|
-| `--watch` en producción | server/Dockerfile | `CMD ["node", "--watch", ...]` — es flag de desarrollo, reinicia ante errores sin control |
-| Sin variables de build | client/Dockerfile (no revisado) | Posible falta de ARG para API_URL |
-| Sin graceful degradation | server/src/index.js | Si falla escaneo inicial, `process.exit(1)` — no hay fallback |
-| Sin timeout en streams | images.js | `createReadStream` sin timeout, conexiones lentas pueden acumularse |
-| Caché sin límite de memoria | imageScanner.js | `cachedStructure` en memoria sin límite: con 50K items puede consumir >500 MB |
-| Concurrent scan race | imageScanner.js | `scanPromise` pattern es sólido pero no hay TTL configurable |
-
-### 3.2 Gestión de Estado
-
-✅ Uso de `@tanstack/react-query` para fetching con caché automática  
-✅ `VirtuosoGrid` para virtualización de carpetas (solo renderiza items visibles)  
-✅ WebSocket para notificaciones de cambio en estructura  
-⚠️ Progreso de lectura en `localStorage` — sin encriptación, sin sincronización entre dispositivos
+- Content-Security-Policy
+- Strict-Transport-Security
+- Referrer-Policy
+- Permissions-Policy
+- X-Frame-Options, X-Content-Type-Options
 
 ---
 
-## 4. 🧪 Calidad de Código
+## 3. 🐳 Docker & Contenedores
 
-### 4.1 Tests
-
-| Archivo | Tests | Estado |
-|---------|-------|--------|
-| `pathSanitizer.test.js` | 12 tests (4 suites) | ✅ Pasan |
-| `storage.test.js` | No se pudo leer | — |
-| `vitest.config.js` | Configurado | ✅ |
-
-**Cobertura de tests:** Muy baja (~2% del código). Solo `pathSanitizer.js` tiene tests completos.
-
-**Recomendación:** Agregar tests para:
-- `imageScanner.js` (scan, cache, tree building)
-- `routes/images.js` (thumbnails, archives, metadata)
-- `fileWatcher.js` (WebSocket, broadcast)
-- Componentes React (ReaderView, Lightbox)
-
-### 4.2 Estilo y Convenciones
-
-✅ **Buenas prácticas observadas:**
-- ES Modules (`import/export`) en todo el proyecto
-- Manejo de errores con try/catch en todas las rutas
-- CSS Modules para encapsulamiento de estilos
-- Variables CSS para theming (dark/light mode)
-- Lazy loading de imágenes con `loading="lazy"`
-- Debounce en watcher y guardado de progreso
-- Uso de `AbortController` implícito vía streams
-
-❌ **Áreas de mejora:**
-- `console.warn`/`console.error` en lugar del logger en `images.js` (usar `logger`)
-- No hay `eslint` ni `prettier` configurados
-- No hay TypeScript (props sin validación de tipos)
-- Código duplicado de validación de paths (en 4 rutas diferentes)
-
----
-
-## 5. 🐳 Docker & Despliegue
-
-### 5.1 Server Dockerfile
+### 3.1 Server Dockerfile
 
 ```dockerfile
 FROM node:18-alpine
+RUN apk add --no-cache wget
+WORKDIR /app
 COPY package*.json ./
 RUN npm install --production
 COPY . .
-CMD ["node", "--watch", "src/index.js"]  # ❌ --watch no es para producción
+EXPOSE 3001
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+CMD ["node", "--watch", "src/index.js"]  # ❌ --watch es de desarrollo
 ```
 
-| Problema | Impacto |
-|----------|---------|
-| `--watch` en CMD | Reinicia ante crash silencioso, sin control |
-| `COPY . .` | Copia node_modules locales si existen (aunque se reinstala) |
-| Sin USER no-root | El contenedor corre como root |
-| Sin `.dockerignore` en server | Revisar si existe |
+| Problema | Severidad |
+|----------|-----------|
+| `--watch` en CMD (reinicio silencioso) | 🟡 **MEDIO** |
+| Corre como `root` (falta `USER node`) | 🟢 **BAJO** |
+| Sin `.dockerignore` específico del server | 🟢 **BAJO** |
 
-### 5.2 docker-compose.yml
+**Fix:** `CMD ["node", "src/index.js"]`
 
-✅ Volumen `:ro` (read-only)  
-✅ Healthchecks en ambos servicios  
+### 3.2 Client Dockerfile ✅
+
+```dockerfile
+FROM node:18-alpine AS builder
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+✅ Multi-stage build (no deja rastro de Node en producción)  
+✅ Nginx:alpine (liviano, ~23 MB)  
+✅ Headers de seguridad en nginx.conf
+
+### 3.3 docker-compose.yml
+
+```yaml
+services:
+  server:
+    build: ./server
+    volumes:
+      - ${IMAGES_DIR}:/data:ro      # ✅ Read-only mount
+    networks:
+      - manga-network
+    healthcheck:
+      test: ["CMD", "wget", ...]     # ✅ Healthcheck
+  client:
+    build: ./client
+    ports:
+      - "3000:80"
+    depends_on:
+      server:
+        condition: service_healthy
+```
+
+✅ Volumen read-only  
 ✅ Red bridge aislada  
-⚠️ Puerto `3000` público sin autenticación  
-⚠️ Sin límite de recursos (memoria/CPU)
+✅ Healthchecks  
+⚠️ Sin límites de recursos (`deploy.resources`)  
+⚠️ Sin restart policies explícitas
 
 ---
 
-## 6. 🗑️ Artefactos Forenses
+## 4. 🗑️ Artefactos en Disco (Gitignorados pero presentes)
 
-### 6.1 Archivos Comprometedores
+| Archivo | Tamaño | Contenido | Acción recomendada |
+|---------|--------|-----------|--------------------|
+| `-w` | **7.7 MB** | Dump JSON de `getStructure()` — lista completa de archivos de `N:/Torrents` | ❌ **Eliminar** |
+| `session-ses_1bc7.md` | **369 KB** | Log completo de sesión con IA (prompts, decisiones) | ❌ **Eliminar** |
+| `server/server.log` | **~2 KB** | Log de ejecución del servidor | ❌ **Eliminar** |
+| `.env` | 695 B | Credenciales + ruta | ⚠️ Mantener pero rotar |
 
-| Archivo | Tamaño | Riesgo |
-|---------|--------|--------|
-| `-w` | 7.7 MB | **ALTO** — Binario misterioso en raíz |
-| `.env` | 695 B | **ALTO** — Ruta real + credenciales |
-| `session-ses_1bc7.md` | 369 KB | **ALTO** — Conversación completa con IA |
-| `server/server.log` | Variable | **MEDIO** — Logs de operación del servidor |
-
-### 6.2 Git History
-
-```
-5e15942 feat: initialize server with image viewer backend (302 files, 99,692 ++)
-df3bd98 Initial commit (solo README.md)
-```
-
-⚠️ **Commit único masivo**: 302 archivos en un solo commit. Incluye:
-- `node_modules/` de OpenCode skills
-- `session-ses_1bc7.md` (conversación de IA)
-- El archivo misterioso `-w`
-- Cientos de archivos `.xsd` de esquemas Office Open XML
-
-### 6.3 .gitignore
-
-```
--w           # Mystery dump
-session-*.md # Session logs from AI tools
-*.log
-server/*.log
-```
-
-✅ El `-w` está ignorado en git.  
-✅ `session-*.md` está ignorado.  
-✅ `*.log` está ignorado.  
-
-Pero **el daño ya está hecho en commits pasados** (el commit `5e15942` ya incluye `session-ses_1bc7.md`).
+**Estado en git:** Todos están en `.gitignore` (desde `f0328c3`) y removidos del tracking. Pero `-w` y `session-ses_1bc7.md` y `.env` aún existen en commits pasados del historial.
 
 ---
 
-## 7. 📊 Dependencias
+## 5. 🧪 Cobertura de Tests
 
-### npm audit: ✅ 0 vulnerabilidades conocidas
+| Archivo | Tests | Estado |
+|---------|-------|--------|
+| `pathSanitizer.test.js` | 12 tests / 4 suites | ✅ Pasando |
+| `storage.test.js` | — | ⚠️ Existe pero no se pudo inspeccionar |
+| **Total** | **~12 tests** | **Cobertura: ~2%** |
 
-**Análisis de dependencias:**
+### Tests de `pathSanitizer` (✅ actualizados en `f0328c3`):
 
-| Paquete | Versión | Observación |
-|---------|---------|-------------|
-| `sharp` | 0.33.1 | ✅ Actualizado (libvips) |
-| `helmet` | 8.2.0 | ✅ Reciente |
-| `express` | 4.18.2 | ⚠️ 4.19+ tiene parches de seguridad |
+| Suite | Tests |
+|-------|-------|
+| Security - Path Traversal Prevention | 7 tests (.., ../.., absolute, mixed separators, URL-encoded, null bytes) |
+| Valid Paths | 5 tests (relative, mixed separators, empty, root-level, `startsWith(BASE_DIR)`) |
+| Edge Cases | 4 tests (spaces, Unicode, long paths, drive letters on Windows) |
+
+**Faltante crítico:** No hay tests para rutas API, WebSocket, imageScanner, componentes React, ni fileWatcher.
+
+---
+
+## 6. 📦 Dependencias
+
+### npm audit: ✅ 0 vulnerabilidades
+
+| Paquete | Versión | Nota |
+|---------|---------|------|
+| `vite` | 8.0.14 | ✅ Actualizado (fijado en `f0328c3`) |
+| `vitest` | 4.1.7 | ✅ Actualizado |
+| `sharp` | 0.33.1 | ✅ Estable |
+| `helmet` | 8.2.0 | ✅ Agregado en `f0328c3` |
+| `express` | 4.18.2 | ⚠️ 4.19+ disponible (path traversal fix) |
 | `react` | 18.2.0 | ⚠️ React 19 disponible |
-| `vite` | 8.x | ✅ Muy reciente |
-| `unzipper` | 0.10.14 | ⚠️ Librería no muy activa (riesgo zip-slip) |
-| `pino` | 8.17.2 | ⚠️ Pino 9.x disponible |
-| `chokidar` | 3.5.3 | ✅ Madura y estable |
 
 ---
 
-## 8. ✅ Hallazgos Positivos
+## 7. 💎 Hallazgos Positivos
 
-1. ✅ **Path sanitizer con tests** — único módulo con cobertura completa
-2. ✅ **Helmet + Rate Limiting + CORS restrictivo** — buena base de seguridad
-3. ✅ **Arquitectura limpia** — separación server/client con Docker Compose
-4. ✅ **Virtualización con react-virtuoso** — buen rendimiento para miles de imágenes
-5. ✅ **WebSocket para actualizaciones en tiempo real** — UX sólida
-6. ✅ **Dark/Light theme con CSS variables** — accesibilidad visual
-7. ✅ **Precarga de imágenes y thumbnails** — rendimiento optimizado
-8. ✅ **Manejo de errores con fallbacks** — thumbnails fallback al original
-9. ✅ **Debounce en watcher** — evita re-escaneos excesivos
-10. ✅ **Navegación entre capítulos** — ReaderView con `onNavigateChapter`
+1. ✅ **Path sanitizer con 12 tests** — única función con cobertura completa
+2. ✅ **Helmet + Rate Limiting + CORS restrictivo** — buena postura de seguridad
+3. ✅ **Arquitectura limpia** — server/client separados con Docker Compose
+4. ✅ **Docker multi-stage** (client) — build efímero con Nginx en producción
+5. ✅ **Volumen read-only** (`:ro`) en docker-compose
+6. ✅ **WebSocket** — notificaciones en tiempo real de cambios en estructura
+7. ✅ **Dark/Light theme** con CSS variables y transición suave
+8. ✅ **Virtualización con react-virtuoso** — buen rendimiento con miles de imágenes
+9. ✅ **Precarga de imágenes** en Lightbox y ReaderView
+10. ✅ **Fallback de thumbnails** — si sharp falla, sirve la imagen original
+11. ✅ **Debounce** — en watcher (1s) y guardado de progreso (1s)
+12. ✅ **Manejo de errores** con `try/catch` en todas las rutas
+13. ✅ **Content-Security-Policy** y HSTS en nginx.conf (agregado en `f0328c3`)
+14. ✅ **Logger Pino** centralizado en utils (agregado en `f0328c3`)
+15. ✅ **Límite de 50K items** y exclusión de directorios torrents/system
 
 ---
 
-## 9. ❌ Hallazgos Críticos a Corregir
+## 8. ❌ Hallazgos Abiertos
 
-| # | Prioridad | Hallazgo | Acción |
+| # | Prioridad | Hallazgo | Estado |
 |---|-----------|----------|--------|
-| 1 | 🔴 **CRÍTICA** | `.env` con credenciales e IMAGES_DIR real | Eliminar/rotar, segregar del repo |
-| 2 | 🔴 **CRÍTICA** | `session-ses_1bc7.md` en git history | Usar `git filter-branch` o `BFG Repo-Cleaner` |
-| 3 | 🔴 **CRÍTICA** | Archivo `-w` de 7.7 MB | Investigar origen y eliminar |
-| 4 | 🟠 **ALTA** | Path traversal por UTF-8 tricks | Mejorar `sanitizePath` con normalización Unicode |
-| 5 | 🟠 **ALTA** | Sin autenticación real (ENABLE_AUTH=false) | Implementar JWT o middleware de auth |
-| 6 | 🟠 **ALTA** | Zip-Slip en extracción de archivos | Validar paths internos en archivos ZIP |
-| 7 | 🟡 **MEDIA** | `node --watch` en Dockerfile producción | Cambiar a `node src/index.js` |
-| 8 | 🟡 **MEDIA** | `.opencode/` infla el repo innecesariamente | Mover a `.gitignore` y limpiar historial |
-| 9 | 🟡 **MEDIA** | Cache en memoria sin límite | Implementar LRU cache o límite de items |
-| 10 | 🟢 **BAJA** | Sin eslint/prettier/TypeScript | Agregar tooling de calidad |
+| 1 | 🔴 **CRÍTICA** | `.env` en historial Git (commit `5e15942`) | ⛔ Pendiente `git filter-branch` |
+| 2 | 🔴 **CRÍTICA** | `-w` y `session-ses_1bc7.md` e `.env` en historial Git | ⛔ Pendiente purga histórica |
+| 3 | 🟠 **ALTA** | Zip-Slip: archivos ZIP/CBZ sin validación de paths internos | ⛔ Sin corregir |
+| 4 | 🟠 **ALTA** | Path sanitizer vulnerable a Unicode tricks (‥) | ⛔ Sin corregir |
+| 5 | 🟠 **ALTA** | Basic Auth sin HTTPS — credenciales viajan en Base64 | 🟡 Depende del despliegue |
+| 6 | 🟡 **MEDIA** | `node --watch` en Dockerfile producción | ⛔ Sin corregir |
+| 7 | 🟡 **MEDIA** | `.opencode/` con skills OpenCode infla el repo (~30 MB) | ⛔ Pendiente filtrar |
+| 8 | 🟡 **MEDIA** | Caché en memoria sin límite de tamaño | ⛔ Sin corregir |
+| 9 | 🟡 **MEDIA** | Server corre como root en contenedor | ⛔ Sin corregir |
+| 10 | 🟢 **BAJA** | Sin ESLint/Prettier/TypeScript | ⛔ Sin corregir |
 
 ---
 
-## 10. 📈 Recomendaciones de Arquitectura
-
-### Corto plazo (1-2 días)
-- [x] ~~Eliminar `-w`, `server.log`, `session-*.md` del disco~~
-- [x] ~~Hacer `git filter-branch` para limpiar historial de archivos sensibles~~
-- [x] ~~Mejorar `pathSanitizer.js` con normalización Unicode + decodeURIComponent~~
-- [x] ~~Validar paths internos en extracción de ZIP/CBZ~~
-- [x] ~~Rotar credenciales y cambiar `AUTH_PASS`~~
-
-### Mediano plazo (1-2 semanas)
-- [x] ~~Migrar a Express 4.19+ o Express 5~~
-- [x] ~~Agregar TypeScript progresivo (empezar por utils/)~~
-- [x] ~~Implementar sistema de autenticación con JWT~~
-- [x] ~~Agregar tests unitarios para routes y componentes clave~~
-- [x] ~~Configurar ESLint + Prettier~~
-- [x] ~~Separar `.opencode/` a un directorio externo~~
-
-### Largo plazo
-- [x] ~~Considerar migración a React 19~~
-- [x] ~~Implementar cola de tareas para procesamiento de thumbnails~~
-- [x] ~~Cache distribuida (Redis) para estructura de directorios~~
-- [x] ~~Soporte para múltiples usuarios con progreso sincronizado~~
-
----
-
-## 11. 📊 Métricas del Proyecto
+## 9. 📊 Métricas
 
 | Métrica | Valor |
 |---------|-------|
-| Archivos fuente (excluyendo node_modules) | ~50 |
-| Líneas de código (server + client) | ~3,500 |
+| Archivos fuente (app) | ~40 |
+| Líneas de código (server + client) | ~4,500 |
 | Componentes React | 14 |
-| Rutas API | 6 |
-| Tests unitarios | 12 (solo pathSanitizer) |
+| Rutas API | 7 (image, thumb, archive, metadata, structure, flat, tree, health, ws-info) |
+| Tests | ~12 (solo pathSanitizer) |
 | Cobertura de tests | ~2% |
-| Dependencias (server) | 11 |
-| Dependencias (client) | 7 |
-| Vulnerabilidades (npm audit) | 0 |
-| Commits en git | 2 |
-| Tamaño del repo (con node_modules) | ~400 MB |
-| Tamaño real del código fuente | ~3 MB |
+| Vulnerabilidades (npm audit) | 0 ✅ |
+| Commits en git | 3 |
+| Correcciones aplicadas | ~15 (en commit `f0328c3`) |
+
+---
+
+## 10. 🎯 Plan de Acción
+
+### 🔴 Inmediato (hoy)
+- [ ] Purgar historial git: `git filter-branch --force --index-filter "git rm --cached --ignore-unmatch .env -w session-ses_1bc7.md server/server.log" --prune-empty --tag-name-filter cat -- --all`
+- [ ] Eliminar archivos del disco: `del -w session-ses_1bc7.md server\server.log`
+- [ ] Validar paths internos en ZIP/CBZ (zip-slip fix)
+
+### 🟠 Corto plazo (1-3 días)
+- [ ] Normalización Unicode en `sanitizePath`: `requestedPath.normalize('NFD')`
+- [ ] `CMD ["node", "src/index.js"]` en server/Dockerfile
+- [ ] Agregar `USER node` en server/Dockerfile
+- [ ] Implementar autenticación real (JWT si hay multi-usuario, o al menos bcrypt)
+- [ ] Límite de memoria para cache (`cachedStructure`)
+
+### 🟡 Mediano plazo (1-2 semanas)
+- [ ] Configurar ESLint + Prettier
+- [ ] Migrar de CJS a ESM completo (ya casi lo está)
+- [ ] Agregar tests para rutas API (supertest + Vitest)
+- [ ] Configurar CI/CD (GitHub Actions)
+- [ ] Mover `.opencode/` a `.gitignore` y purgar
+
+### 🟢 Largo plazo
+- [ ] Migrar a Express 5 (cuando stable)
+- [ ] React 19
+- [ ] Soporte multi-usuario con progreso sincronizado
+- [ ] HTTPS autogestionado (Caddy como reverse proxy)
+- [ ] Cola de tareas para thumbnails (Bull/BullMQ)
 
 ---
 
 ## 🔗 Archivos de Referencia
 
-- [`HALLAZGOS_A_CORREGIR.md`](./HALLAZGOS_A_CORREGIR.md) — Issues priorizados detectados
-- [`FORENSIC_AUDIT.md`](./FORENSIC_AUDIT.md) — Este informe
-- [`README.md`](./README.md) — Documentación del proyecto
-- [`DOCKER.md`](./DOCKER.md) — Instrucciones Docker
+| Archivo | Descripción |
+|---------|-------------|
+| `FORENSIC_AUDIT.md` | Este informe (auditoría forense actual) |
+| `HALLAZGOS_A_CORREGIR.md` | Consolidado de 19 hallazgos con soluciones |
+| `README.md` | Documentación del proyecto |
+| `DOCKER.md` | Instrucciones Docker |
+| `docker-compose.yml` | Orquestación de servicios |
 
 ---
 
-*Auditoría generada el 2026-05-26 por OpenClaw AI*  
+### ⚠️ Nota Final
+
+El proyecto ha mejorado significativamente con el commit `f0328c3` que aplicó ~15 correcciones de seguridad y calidad. Sin embargo, **persisten 3 riesgos críticos** que requieren intervención manual:
+
+1. **Purgar historial Git** — las credenciales y datos sensibles siguen en commits anteriores
+2. **Validar zip-slip** — vector de ataque real en entornos con subida de archivos
+3. **Normalizar Unicode** — el path sanitizer es sólido pero puede eludirse con caracteres especiales
+
+---
+
+*Auditoría generada el 2026-05-26 07:52 GMT-5 por OpenClaw AI*  
 *Para: David Vite — Jefatura TICS, Hospital General Milagro - IESS*

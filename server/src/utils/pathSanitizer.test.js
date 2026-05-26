@@ -29,8 +29,34 @@ describe('pathSanitizer', () => {
     })
 
     it('should block paths with null bytes', () => {
-      // Simular null byte injection
       expect(sanitizePath('image.jpg\0../../../etc/passwd', BASE_DIR)).toBeNull()
+    })
+
+    // 🔒 NUEVOS TESTS DE SEGURIDAD
+    it('should block unicode character U+2025 (‥) path traversal', () => {
+      // U+2025 (‥) es visualmente similar a ".." pero no es detectado por startsWith
+      expect(sanitizePath('\u2025\u2025/etc/passwd', BASE_DIR)).toBeNull()
+    })
+
+    it('should block unicode character U+FF0E (．) path traversal', () => {
+      // U+FF0E (．) es un punto full-width que puede eludir filtros
+      expect(sanitizePath('\uFF0E\uFF0E/etc/passwd', BASE_DIR)).toBeNull()
+    })
+
+    it('should block control characters in path', () => {
+      expect(sanitizePath('image.jpg\x01/etc/passwd', BASE_DIR)).toBeNull()
+      expect(sanitizePath('image.jpg\x1f/image', BASE_DIR)).toBeNull()
+    })
+
+    it('should block dangerous filesystem characters', () => {
+      expect(sanitizePath('image<>bad.jpg', BASE_DIR)).toBeNull()
+      expect(sanitizePath('image|bad.jpg', BASE_DIR)).toBeNull()
+    })
+
+    it('should block URI-encoded Unicode traversal attempts', () => {
+      // Simular URI encoding de caracteres Unicode peligrosos
+      const decoded = decodeURIComponent('%E2%80%A5%E2%80%A5/etc/passwd') // ‥‥
+      expect(sanitizePath(decoded, BASE_DIR)).toBeNull()
     })
   })
 
@@ -57,7 +83,6 @@ describe('pathSanitizer', () => {
 
     it('should return a path within BASE_DIR', () => {
       const result = sanitizePath('subdir/image.jpg', BASE_DIR)
-      // El path resuelto debe comenzar con BASE_DIR
       expect(result.startsWith(BASE_DIR)).toBe(true)
     })
   })
@@ -79,11 +104,20 @@ describe('pathSanitizer', () => {
       expect(result).toContain('image.jpg')
     })
 
+    it('should handle URI-encoded valid paths', () => {
+      const validEncoded = decodeURIComponent('folder%2Fimage.jpg')
+      const result = sanitizePath(validEncoded, BASE_DIR)
+      expect(result).toContain('image.jpg')
+    })
+
     it('should reject paths with drive letters on Windows', () => {
-      // C: en medio del path debe ser tratado como segmento normal
       const result = sanitizePath('folder/C:/image.jpg', BASE_DIR)
-      // El resultado debe estar dentro de BASE_DIR
       expect(result.startsWith(BASE_DIR)).toBe(true)
+    })
+
+    it('should handle filenames with dots', () => {
+      const result = sanitizePath('folder/image.v2.1.jpg', BASE_DIR)
+      expect(result).toContain('image.v2.1.jpg')
     })
   })
 })

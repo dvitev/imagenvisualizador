@@ -167,6 +167,27 @@ router.get('/archive/*', async (req, res) => {
 
     directory.files
       .filter(file => {
+        // 🔒 Zip-Slip protection: rechazar paths que escapen del directorio base
+        const normalizedEntryPath = path.normalize(file.path);
+        const resolvedEntryPath = path.resolve('/', normalizedEntryPath);
+        const resolvedArchiveBase = path.resolve('/');
+        
+        if (normalizedEntryPath.includes('..') || path.isAbsolute(normalizedEntryPath)) {
+          console.warn(`Blocked zip-slip attempt in archive: ${file.path}`);
+          return false;
+        }
+
+        if (!resolvedEntryPath.startsWith(resolvedArchiveBase)) {
+          console.warn(`Blocked zip-slip attempt in archive: ${file.path}`);
+          return false;
+        }
+
+        // Rechazar caracteres de control en nombres de archivo
+        if (/[\x00-\x1f]/.test(file.path)) {
+          console.warn(`Blocked control character in archive entry: ${file.path}`);
+          return false;
+        }
+
         const fileExt = path.extname(file.path).toLowerCase();
         return imageExtensions.includes(fileExt);
       })

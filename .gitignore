@@ -32,3 +32,9 @@ session-*.md
 # Server logs
 server/*.log
 server/logs/
+
+# OpenCode / Cursor AI skills (bloat, no pertenecen al proyecto)
+.opencode/
+
+# Image dumps / temporary files
+*.dump

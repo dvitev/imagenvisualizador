@@ -4,6 +4,9 @@ FROM node:18-alpine
 # Install wget for healthcheck
 RUN apk add --no-cache wget
 
+# Create non-root user for security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 WORKDIR /app
 
 # Copy package files
@@ -16,7 +19,10 @@ RUN npm install --production
 COPY . .
 
 # Create data directory for images
-RUN mkdir -p /data
+RUN mkdir -p /data && chown appuser:appgroup /data
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 3001
@@ -31,5 +37,5 @@ ENV HOST=0.0.0.0
 ENV PORT=3001
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Start server
-CMD ["node", "--watch", "src/index.js"]
+# Start server (NOTA: --watch es solo para desarrollo)
+CMD ["node", "src/index.js"]
