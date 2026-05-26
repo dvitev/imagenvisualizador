@@ -1,6 +1,7 @@
 import chokidar from 'chokidar';
 import { WebSocketServer } from 'ws';
 import { invalidateCache } from './imageScanner.js';
+import logger from './utils/logger.js';
 
 let wss = null;
 let watcher = null;
@@ -12,15 +13,15 @@ export function setupFileWatcher(baseDir, server) {
   
   wss.on('connection', (ws) => {
     clients.add(ws);
-    console.log('🔌 WebSocket client connected');
+    logger.debug('WebSocket client connected');
     
     ws.on('close', () => {
       clients.delete(ws);
-      console.log('🔌 WebSocket client disconnected');
+      logger.debug('WebSocket client disconnected');
     });
     
     ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
+      logger.error({ error: error.message }, 'WebSocket error');
       clients.delete(ws);
     });
   });
@@ -60,7 +61,7 @@ export function setupFileWatcher(baseDir, server) {
   });
   
   const debouncedScan = debounce(async () => {
-    console.log('📁 Cambios detectados, re-escaneando...');
+    logger.info('Cambios detectados, re-escaneando...');
     invalidateCache();
     
     try {
@@ -79,34 +80,34 @@ export function setupFileWatcher(baseDir, server) {
         }
       });
       
-      console.log(`✅ Estructura actualizada: ${structure.length} elementos`);
+      logger.info({ items: structure.length }, 'Estructura actualizada');
     } catch (error) {
-      console.error('❌ Error re-escaneando:', error.message);
+      logger.error({ error: error.message }, 'Error re-escaneando');
     }
   }, 1000);
   
   watcher
     .on('add', (path) => {
-      console.log(`📄 Archivo añadido: ${path}`);
+      logger.debug({ file: path }, 'Archivo añadido');
       debouncedScan();
     })
     .on('unlink', (path) => {
-      console.log(`🗑️ Archivo eliminado: ${path}`);
+      logger.debug({ file: path }, 'Archivo eliminado');
       debouncedScan();
     })
     .on('addDir', (path) => {
-      console.log(`📁 Carpeta añadida: ${path}`);
+      logger.debug({ dir: path }, 'Carpeta añadida');
       debouncedScan();
     })
     .on('unlinkDir', (path) => {
-      console.log(`🗑️ Carpeta eliminada: ${path}`);
+      logger.debug({ dir: path }, 'Carpeta eliminada');
       debouncedScan();
     })
     .on('error', (error) => {
-      console.error('❌ Error en file watcher:', error);
+      logger.error({ error: error.message }, 'Error en file watcher');
     });
   
-  console.log('👁️ File watcher inicializado');
+  logger.info('File watcher inicializado');
   
   return () => {
     if (watcher) {

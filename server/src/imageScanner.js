@@ -1,5 +1,7 @@
-import { readdir, stat } from 'fs/promises';
+import { readdir, stat as fsStat } from 'fs/promises';
 import path from 'path';
+import sharp from 'sharp';
+import logger from './utils/logger.js';
 
 const VALID_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']);
 const ARCHIVE_EXTENSIONS = new Set(['.cbz']);
@@ -20,7 +22,7 @@ const EXCLUDED_DIRS = new Set([
 ]);
 
 const MAX_DEPTH = 15;
-const MAX_ITEMS = 20000;
+const MAX_ITEMS = 50000;
 
 function shouldExcludeDirectory(dirname) {
   const lowerName = dirname.toLowerCase();
@@ -100,12 +102,12 @@ async function scanDirectoryIterative(baseDir) {
         }
       }
     } catch (error) {
-      console.warn(`⚠️ Error scanning ${currentDir}: ${error.message}`);
+      logger.warn({ dir: currentDir, error: error.message }, 'Error scanning directory');
     }
   }
   
   if (itemCount >= MAX_ITEMS) {
-    console.warn(`⚠️ Límite de ${MAX_ITEMS} items alcanzado. Algunos archivos no fueron incluidos.`);
+    logger.warn({ limit: MAX_ITEMS }, 'Limite de items alcanzado. Algunos archivos no fueron incluidos.');
   }
   
   results.sort((a, b) => {
@@ -134,7 +136,7 @@ export async function getStructure(baseDir) {
     return scanPromise;
   }
   
-  console.log(`🔍 Iniciando escaneo de: ${baseDir}`);
+  logger.info({ dir: baseDir }, 'Iniciando escaneo de directorio');
   const startTime = now;
   
   scanPromise = scanDirectoryIterative(baseDir);
@@ -142,7 +144,7 @@ export async function getStructure(baseDir) {
   try {
     cachedStructure = await scanPromise;
     const scanTime = Date.now() - startTime;
-    console.log(`📊 Escaneo completado en ${scanTime}ms: ${cachedStructure.length} elementos`);
+    logger.info({ scanTime, items: cachedStructure.length }, 'Escaneo completado');
     lastScanTime = now;
     return cachedStructure;
   } catch (error) {
@@ -194,10 +196,7 @@ export async function getImagesWithMetadataInRange(baseDir, startIndex, endIndex
 
 async function getImageMetadata(filePath) {
   try {
-    const sharp = await import('sharp');
-    const { stat: fsStat } = await import('fs/promises');
-    
-    const metadata = await sharp.default(filePath).metadata();
+    const metadata = await sharp(filePath).metadata();
     const stats = await fsStat(filePath);
     return {
       width: metadata.width || 0,

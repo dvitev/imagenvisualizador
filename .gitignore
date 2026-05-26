@@ -22,3 +22,13 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Mystery dump
+-w
+
+# Session logs from AI tools
+session-*.md
+
+# Server logs
+server/*.log
+server/logs/

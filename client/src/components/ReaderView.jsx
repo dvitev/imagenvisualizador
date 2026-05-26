@@ -162,19 +162,25 @@ function ReaderView({
     }
   }, [images, readMode, visibleIndices, currentIndex])
 
+  const debouncedSaveRef = useRef(null)
+
   useEffect(() => {
     if (readMode === 'scroll' && onProgressUpdate && currentFolder) {
-      const debouncedSave = debounce(() => {
-        onProgressUpdate(currentFolder, currentIndex, images.length)
-      }, 1000)
+      if (!debouncedSaveRef.current) {
+        debouncedSaveRef.current = debounce((folder, index, total) => {
+          onProgressUpdate(folder, index, total)
+        }, 1000)
+      }
       
-      debouncedSave()
+      debouncedSaveRef.current(currentFolder, currentIndex, images.length)
       
       return () => {
-        if (debouncedSave.cancel) {
-          debouncedSave.cancel()
+        if (debouncedSaveRef.current && debouncedSaveRef.current.cancel) {
+          debouncedSaveRef.current.cancel()
         }
       }
+    } else {
+      debouncedSaveRef.current = null
     }
   }, [currentIndex, readMode, onProgressUpdate, currentFolder, images.length])
 
@@ -202,7 +208,8 @@ function ReaderView({
 
   const toggleFullscreen = async () => {
     if (!document.fullscreenElement) {
-      await document.documentElement.requestFullscreen()
+      const el = containerRef.current || document.documentElement
+      await el.requestFullscreen()
       setIsFullscreen(true)
     } else {
       await document.exitFullscreen()
