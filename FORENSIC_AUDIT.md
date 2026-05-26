@@ -1,9 +1,24 @@
 # 🔍 Auditoría Forense Completa — `imagenvisualizador`
 
-**Fecha:** 2026-05-26 (07:52 GMT-5)  
+**Fecha:** 2026-05-26 (07:52 GMT-5) — Actualizado 11:50 GMT-5  
 **Analista:** OpenClaw AI  
-**Versión del proyecto:** 1.0.0  
+**Versión del proyecto:** 1.0.0 (+1 fix commit)  
 **Repositorio:** `D:\PycharmProjects\imagenvisualizador`
+
+---
+
+## ✅ Correcciones Aplicadas (26-May 11:50 GMT-5)
+
+| # | Hallazgo | Corrección | Estado |
+|---|----------|-----------|--------|
+| 🔴 | `.env` en historial Git | `git filter-branch` purgó `.env`, `-w`, `session-ses_1bc7.md`, `server.log` | ✅ **HECHO** |
+| 🔴 | `-w` y `session-ses_1bc7.md` en disco | Eliminados físicamente | ✅ **HECHO** |
+| 🟠 | Zip-Slip en ZIP/CBZ | Validación de paths internos + control chars + `..` en archivos comprimidos | ✅ **HECHO** |
+| 🟠 | Unicode path traversal | Normalización NFC + decodificación URI + detección de 7+ caracteres Unicode tipo punto | ✅ **HECHO** |
+| 🟡 | `node --watch` en Dockerfile | Cambiado a `node src/index.js` | ✅ **HECHO** |
+| 🟡 | Contenedor como root | Agregado `USER appuser` con `addgroup`/`adduser` | ✅ **HECHO** |
+| 🟡 | Tests desactualizados | 22 tests (nuevos: Unicode traversal, control chars, zip-slip, caracteres peligrosos) | ✅ **22/22 pasando** |
+| 🟡 | `.opencode/` en repo | Agregado a `.gitignore` | ✅ **HECHO** |
 
 ---
 
@@ -11,13 +26,13 @@
 
 | Dimensión | Estado | Progreso desde auditoría anterior |
 |---|---|---|
-| 🔐 Seguridad | ⚠️ 4 hallazgos abiertos | ✅ 3 corregidos |
+| 🔐 Seguridad | ✅ Mayoría corregida | 🟠 2 hallazgos residuales |
 | 🏗️ Arquitectura | ✅ Sólida | — |
-| 🧪 Tests | ⚠️ Único módulo con cobertura | ✅ Tests actualizados |
-| 🐳 Docker | ⚠️ 2 hallazgos menores | — |
-| 🗑️ Basura en disco | ⚠️ 2 archivos huérfanos | ✅ Git tracking limpio |
-| 📦 Repo bloat | ⚠️ `.opencode/` todavía en historial | — |
-| 🔒 Git history | ⚠️ Credenciales en commits pasados | ✅ `.env` ignorado ahora |
+| 🧪 Tests | ⚠️ Cobertura limitada | ✅ 22 tests, +10 nuevos |
+| 🐳 Docker | ✅ Corregido | `--watch` y `USER` fijados |
+| 🗑️ Basura en disco | ✅ Limpio | Archivos eliminados |
+| 🔒 Git history | ✅ Purgado | `filter-branch` completado |
+| 📦 Repo bloat | 🟡 `.opencode/` en `.gitignore` | Pendiente purga histórica |
 
 ---
 
@@ -55,20 +70,26 @@ imagenvisualizador/
 └── HALLAZGOS_A_CORREGIR.md
 ```
 
-### 3️⃣ Commits en Git
+### 4️⃣ Commits en Git (historial purgado)
 
-| Hash | Mensaje | Fecha | Archivos | Líneas |
-|------|---------|-------|----------|--------|
-| `df3bd98` | Initial commit | — | README.md | +322 |
-| `5e15942` | feat: initialize server... | 21-May | +302 | +99,692 |
-| `f0328c3` | `.` (fix commit) | 26-May | 17 cambiados | +2,930 / -9,927 ✅ |
+| Hash | Mensaje | Fecha |
+|------|---------|-------|
+| `00fa931` | Initial commit | — |
+| `e0a342e` | feat: initialize server... | 21-May |
+| `aa33145` | `.` (fix commit) | 26-May |
+| `b5cbd81` | ✅ fix: correcciones de seguridad post-auditoria | **Ahora** |
 
-**El commit `f0328c3` eliminó del tracking:**
-- `-w` (dump JSON 7.7 MB)
-- `session-ses_1bc7.md` (log IA 369 KB)
-- Agregó `FORENSIC_AUDIT.md` y `HALLAZGOS_A_CORREGIR.md`
-- Actualizó `.gitignore` con exclusiones
-- Aplicó ~15 correcciones de seguridad y calidad
+🔒 **Historial purgado con `git filter-branch`** — se eliminaron permanentemente:
+- ✅ `.env` — credenciales y rutas
+- ✅ `-w` — dump JSON 7.7 MB
+- ✅ `session-ses_1bc7.md` — log de IA 369 KB
+- ✅ `server/server.log` — log de ejecución
+
+**El commit `aa33145` (anteriormente `f0328c3`) ya había:**
+- Eliminado del tracking: `-w`, `session-ses_1bc7.md`
+- Agregado `FORENSIC_AUDIT.md` y `HALLAZGOS_A_CORREGIR.md`
+- Actualizado `.gitignore` con exclusiones
+- Aplicado ~15 correcciones de seguridad y calidad
 
 ---
 
@@ -317,16 +338,24 @@ services:
 
 | # | Prioridad | Hallazgo | Estado |
 |---|-----------|----------|--------|
-| 1 | 🔴 **CRÍTICA** | `.env` en historial Git (commit `5e15942`) | ⛔ Pendiente `git filter-branch` |
-| 2 | 🔴 **CRÍTICA** | `-w` y `session-ses_1bc7.md` e `.env` en historial Git | ⛔ Pendiente purga histórica |
-| 3 | 🟠 **ALTA** | Zip-Slip: archivos ZIP/CBZ sin validación de paths internos | ⛔ Sin corregir |
-| 4 | 🟠 **ALTA** | Path sanitizer vulnerable a Unicode tricks (‥) | ⛔ Sin corregir |
-| 5 | 🟠 **ALTA** | Basic Auth sin HTTPS — credenciales viajan en Base64 | 🟡 Depende del despliegue |
-| 6 | 🟡 **MEDIA** | `node --watch` en Dockerfile producción | ⛔ Sin corregir |
-| 7 | 🟡 **MEDIA** | `.opencode/` con skills OpenCode infla el repo (~30 MB) | ⛔ Pendiente filtrar |
-| 8 | 🟡 **MEDIA** | Caché en memoria sin límite de tamaño | ⛔ Sin corregir |
-| 9 | 🟡 **MEDIA** | Server corre como root en contenedor | ⛔ Sin corregir |
-| 10 | 🟢 **BAJA** | Sin ESLint/Prettier/TypeScript | ⛔ Sin corregir |
+| 1 | 🟠 **ALTA** | Basic Auth sin HTTPS — credenciales viajan en Base64 | 🟡 Depende del despliegue |
+| 2 | 🟡 **MEDIA** | `.opencode/` infla el repo (~30 MB) en historial | ⛔ Pendiente purgar |
+| 3 | 🟡 **MEDIA** | Caché en memoria (`cachedStructure`) sin límite de tamaño | ⛔ Pendiente implementar LRU |
+| 4 | 🟢 **BAJA** | Sin ESLint/Prettier/TypeScript | ⛔ Configurar tooling |
+| 5 | 🟢 **BAJA** | Cobertura de tests limitada (~2%) | ⛔ Agregar tests de API y componentes |
+| 6 | 🟢 **BAJA** | `express` 4.18.2 (4.19+ disponible) | ⛔ `npm update` |
+
+### ✅ Corregidos en esta auditoría
+
+| Hallazgo | Antes | Ahora |
+|----------|-------|-------|
+| `.env` en historial Git | 🔴 Comprometido | ✅ Purgado con filter-branch |
+| Archivos basura en disco | 🔴 7.7 MB + 369 KB | ✅ Eliminados |
+| Path traversal Unicode | 🟠 Vulnerable | ✅ NFC + decodeURI + detección de dots Unicode |
+| Zip-Slip (ZIP/CBZ) | 🟠 Sin protección | ✅ Validación de paths internos |
+| `--watch` en Dockerfile | 🟡 Dev flag en prod | ✅ `node src/index.js` |
+| Contenedor como root | 🟡 Sin `USER` | ✅ `appuser` no-root |
+| Tests de seguridad | 🟡 12 tests | ✅ 22 tests (nuevos casos Unicode/control/zip-slip)
 
 ---
 
@@ -348,30 +377,31 @@ services:
 
 ## 10. 🎯 Plan de Acción
 
-### 🔴 Inmediato (hoy)
-- [ ] Purgar historial git: `git filter-branch --force --index-filter "git rm --cached --ignore-unmatch .env -w session-ses_1bc7.md server/server.log" --prune-empty --tag-name-filter cat -- --all`
-- [ ] Eliminar archivos del disco: `del -w session-ses_1bc7.md server\server.log`
-- [ ] Validar paths internos en ZIP/CBZ (zip-slip fix)
+### ✅ HECHO (26-May 11:50 GMT-5)
+- [x] Purgar historial git (filter-branch completado)
+- [x] Eliminar archivos del disco (`-w`, `session-ses_1bc7.md`, `server.log`)
+- [x] Zip-Slip fix en ZIP/CBZ
+- [x] Normalización Unicode en `sanitizePath`
+- [x] `CMD ["node", "src/index.js"]` en server/Dockerfile
+- [x] `USER appuser` no root
+- [x] Tests actualizados (22 tests, 22/22 pasando)
 
 ### 🟠 Corto plazo (1-3 días)
-- [ ] Normalización Unicode en `sanitizePath`: `requestedPath.normalize('NFD')`
-- [ ] `CMD ["node", "src/index.js"]` en server/Dockerfile
-- [ ] Agregar `USER node` en server/Dockerfile
-- [ ] Implementar autenticación real (JWT si hay multi-usuario, o al menos bcrypt)
-- [ ] Límite de memoria para cache (`cachedStructure`)
+- [ ] Purgar `.opencode/` del historial git (filter-branch adicional)
+- [ ] Implementar autenticación real (JWT o derivar a reverse proxy con HTTPS)
+- [ ] Límite de memoria para cache (`cachedStructure` — LRU o size limit)
+- [ ] Hacer `git push --force origin main` si hay remote configurado
 
 ### 🟡 Mediano plazo (1-2 semanas)
 - [ ] Configurar ESLint + Prettier
-- [ ] Migrar de CJS a ESM completo (ya casi lo está)
 - [ ] Agregar tests para rutas API (supertest + Vitest)
 - [ ] Configurar CI/CD (GitHub Actions)
-- [ ] Mover `.opencode/` a `.gitignore` y purgar
+- [ ] Configurar HTTPS (Caddy como reverse proxy)
 
 ### 🟢 Largo plazo
-- [ ] Migrar a Express 5 (cuando stable)
+- [ ] Migrar a Express 5
 - [ ] React 19
 - [ ] Soporte multi-usuario con progreso sincronizado
-- [ ] HTTPS autogestionado (Caddy como reverse proxy)
 - [ ] Cola de tareas para thumbnails (Bull/BullMQ)
 
 ---
