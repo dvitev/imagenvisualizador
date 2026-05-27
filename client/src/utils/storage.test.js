@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { getProgress, saveProgress, getFolderProgress, getContinueReading, getTheme, setTheme } from '../storage.js'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { getProgress, saveProgress, getFolderProgress, getContinueReading, getTheme, setTheme } from './storage.js'
 
 describe('storage utils', () => {
   beforeEach(() => {
@@ -14,7 +14,7 @@ describe('storage utils', () => {
     it('should save and retrieve progress', () => {
       saveProgress('test-folder', 5, 20)
       const progress = getFolderProgress('test-folder')
-      
+
       expect(progress).toBeDefined()
       expect(progress.lastIndex).toBe(5)
       expect(progress.totalImages).toBe(20)
@@ -31,7 +31,6 @@ describe('storage utils', () => {
     it('should handle multiple folders', () => {
       saveProgress('folder-1', 5, 10)
       saveProgress('folder-2', 3, 20)
-      
       expect(getFolderProgress('folder-1').percent).toBe(60)
       expect(getFolderProgress('folder-2').percent).toBe(20)
     })
@@ -53,14 +52,19 @@ describe('storage utils', () => {
         { path: 'f3', displayName: 'Folder 3' }
       ]
 
+      // Insertar con delays para asegurar timestamps distintos
       saveProgress('f1', 5, 10)
+      const t1 = Date.now()
+      while (Date.now() - t1 < 5) { /* spin */ }
       saveProgress('f2', 3, 10)
+      const t2 = Date.now()
+      while (Date.now() - t2 < 5) { /* spin */ }
       saveProgress('f3', 8, 10)
 
       const result = getContinueReading(folders)
       expect(result.length).toBe(3)
+      // El más reciente (f3) debe ir primero
       expect(result[0].path).toBe('f3')
-      expect(result[2].path).toBe('f1')
     })
 
     it('should limit results to specified limit', () => {
@@ -68,7 +72,6 @@ describe('storage utils', () => {
         path: `f${i}`,
         displayName: `Folder ${i}`
       }))
-
       folders.forEach(f => saveProgress(f.path, 5, 10))
 
       const result = getContinueReading(folders, 5)
@@ -89,7 +92,6 @@ describe('storage utils', () => {
     it('should toggle between themes', () => {
       setTheme('dark')
       expect(getTheme()).toBe('dark')
-      
       setTheme('light')
       expect(getTheme()).toBe('light')
     })

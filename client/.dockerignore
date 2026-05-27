@@ -1,24 +1,5 @@
-# Dependencies
-node_modules
-npm-debug.log
-
-# Git
-.git
-
-# Environment
+node_modules/
+dist/
 .env
-.env.local
-
-# OS
 .DS_Store
-*.log
-
-# IDE
-.vscode
-.idea
-*.swp
-*.swo
-
-# Docker (inherited from root)
-docker-compose.yml
-Dockerfile
+Thumbs.db

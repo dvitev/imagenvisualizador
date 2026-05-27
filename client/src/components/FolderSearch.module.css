@@ -126,12 +126,6 @@
   background: #252525;
 }
 
-.result i {
-  color: #fbbf24;
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
 .info {
   flex: 1;
   display: flex;
