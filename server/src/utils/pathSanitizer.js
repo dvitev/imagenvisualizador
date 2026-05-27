@@ -43,6 +43,11 @@ export function sanitizePath(requestedPath, baseDir) {
     return path.resolve(baseDir)
   }
 
+  // 0. Rechazar paths excesivamente largos (DoS protection)
+  if (trimmedPath.length > 4096) {
+    return null
+  }
+
   // 1. Decodificar URI de forma segura (double-encoding, % literales)
   let normalizedPath = safeDecodeURI(trimmedPath)
 

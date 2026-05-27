@@ -97,6 +97,7 @@ router.get('/tree', async (req, res) => {
 
     res.setHeader('Cache-Control', 'public, max-age=60');
     res.setHeader('X-Cache', 'MISS');
+    if (isTruncated()) res.setHeader('X-Truncated', 'true');
     res.json(tree);
   } catch (error) {
     logger.error({ error: error.message }, 'Error en /api/structure/tree');

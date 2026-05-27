@@ -271,7 +271,6 @@ function ReaderView({
     }
   }
 
-  const currentIndexInFolder = images.findIndex((img, idx) => idx === currentIndex)
   const isLastPage = currentIndex === images.length - 1
   const isFirstPage = currentIndex === 0
 

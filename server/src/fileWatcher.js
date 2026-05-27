@@ -46,7 +46,7 @@ export function setupFileWatcher(baseDir, server) {
     ignoreInitial: true,
     ignored: [
       /(^|[\/\\])\../,
-      /(^|[\/\\])torrents/,
+      /(^|[\/\\])([Tt][Oo][Rr][Rr][Ee][Nn][Tt][Ss])([\/\\]|$)/,
       /\.(zip|cbz|rar|cbr|exe|pdf|txt|nfo|sfv|log|tmp|torrent)$/
     ],
     awaitWriteFinish: {

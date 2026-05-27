@@ -79,6 +79,9 @@ async function scanDirectoryIterative(baseDir) {
 
   if (itemCount >= MAX_ITEMS) {
     logger.warn({ limit: MAX_ITEMS }, 'Limite de items alcanzado');
+    wasTruncated = true;
+  } else {
+    wasTruncated = false;
   }
 
   results.sort((a, b) => {
@@ -93,6 +96,7 @@ let cachedStructure = null;
 let scanPromise = null;
 let cachedTree = null;
 let lastScanTime = 0;
+let wasTruncated = false;
 const CACHE_DURATION = 300000;
 
 export async function getStructure(baseDir) {
@@ -191,9 +195,14 @@ export async function getTree(baseDir) {
   return cachedTree;
 }
 
+export function isTruncated() {
+  return wasTruncated;
+}
+
 export function invalidateCache() {
   cachedStructure = null;
   cachedTree = null;
   scanPromise = null;
   lastScanTime = 0;
+  wasTruncated = false;
 }
