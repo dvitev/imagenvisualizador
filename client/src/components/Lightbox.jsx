@@ -63,6 +63,16 @@ function Lightbox({ items, currentIndex, onClose, onNavigate }) {
     }
   }
 
+  // M9: swipe down para cerrar en móvil
+  const touchStartY = useRef(null)
+  const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY }
+  const handleTouchEnd = (e) => {
+    if (!touchStartY.current) return
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current
+    if (deltaY > 100) onClose() // swipe down > 100px = cerrar
+    touchStartY.current = null
+  }
+
   const handleImageClick = () => {
     setIsZoomed((prev) => !prev)
   }
@@ -71,7 +81,7 @@ function Lightbox({ items, currentIndex, onClose, onNavigate }) {
   const canNavigateRight = currentIndex < items.length - 1
 
   return (
-    <div className={styles.overlay} onClick={handleBackdropClick}>
+    <div className={styles.overlay} onClick={handleBackdropClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       <div className={styles.container}>
         <div
           className={`${styles.imageWrapper} ${isZoomed ? styles.zoomed : ''}`}

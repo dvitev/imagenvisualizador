@@ -113,16 +113,22 @@ function ReaderView({
   }, [isPlaying, isFullscreen, onClose, readMode, currentIndex])
 
   useEffect(() => {
-    if (isPlaying && readMode === 'scroll') {
-      const scrollInterval = setInterval(() => {
-        window.scrollBy({ top: speeds[speed].px, behavior: 'smooth' })
-        if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 10) {
-          setIsPlaying(false)
-        }
-      }, 100)
-      return () => clearInterval(scrollInterval)
-    }
-  }, [isPlaying, speed, speeds, readMode])
+    if (!isPlaying || readMode !== 'scroll') return
+
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const scrollInterval = setInterval(() => {
+      const maxScroll = container.scrollHeight - container.clientHeight
+      container.scrollBy({ top: speeds[speed].px, behavior: 'smooth' })
+
+      if (container.scrollTop >= maxScroll - 10) {
+        setIsPlaying(false)
+      }
+    }, 100)
+
+    return () => clearInterval(scrollInterval)
+  }, [isPlaying, speed, speeds, readMode, scrollContainerRef])
 
   useEffect(() => {
     if (isFullscreen) {
@@ -141,26 +147,27 @@ function ReaderView({
   }, [isFullscreen])
 
   useEffect(() => {
-    if (readMode === 'scroll') {
-      const handleScroll = () => {
-        const scrollPosition = window.scrollY + window.innerHeight / 2
-        
-        const visibleArray = Array.from(visibleIndices)
-        if (visibleArray.length > 0) {
-          const currentIndexInView = visibleArray.reduce((prev, curr) => 
-            Math.abs(curr - currentIndex) < Math.abs(prev - currentIndex) ? prev : curr
-          , visibleArray[0])
-          
-          if (currentIndexInView !== undefined && currentIndexInView !== currentIndex) {
-            setCurrentIndex(currentIndexInView)
-          }
+    if (readMode !== 'scroll') return
+
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const handleScroll = () => {
+      const visibleArray = Array.from(visibleIndices)
+      if (visibleArray.length > 0) {
+        const currentIndexInView = visibleArray.reduce((prev, curr) =>
+          Math.abs(curr - currentIndex) < Math.abs(prev - currentIndex) ? curr : prev
+        , visibleArray[0])
+
+        if (currentIndexInView !== undefined && currentIndexInView !== currentIndex) {
+          setCurrentIndex(currentIndexInView)
         }
       }
-
-      window.addEventListener('scroll', handleScroll)
-      return () => window.removeEventListener('scroll', handleScroll)
     }
-  }, [images, readMode, visibleIndices, currentIndex])
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [images, readMode, visibleIndices, currentIndex, scrollContainerRef])
 
   const debouncedSaveRef = useRef(null)
 
@@ -219,7 +226,8 @@ function ReaderView({
 
   const scrollToTop = () => {
     if (readMode === 'scroll') {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      const container = scrollContainerRef.current
+      if (container) container.scrollTo({ top: 0, behavior: 'smooth' })
     } else if (progressRef.current) {
       progressRef.current.scrollTo({ top: 0, behavior: 'smooth' })
     }
@@ -228,7 +236,8 @@ function ReaderView({
 
   const scrollToBottom = () => {
     if (readMode === 'scroll') {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+      const container = scrollContainerRef.current
+      if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
     } else if (progressRef.current) {
       progressRef.current.scrollTo({ top: progressRef.current.scrollHeight, behavior: 'smooth' })
     }

@@ -5,6 +5,7 @@ import { stat } from 'fs/promises';
 import sharp from 'sharp';
 import unzipper from 'unzipper';
 import { sanitizePath } from '../utils/pathSanitizer.js';
+import logger from '../utils/logger.js';
 
 const router = Router();
 
@@ -18,32 +19,24 @@ const MIME_TYPES = {
 
 const BASE_DIR = process.env.IMAGES_DIR;
 
-// ⚠️ IMPORTANTE: Las rutas específicas deben declararse ANTES que la genérica '/*'
+// ⚠️ Las rutas específicas deben declararse ANTES que la genérica '/*'
 // sino Express nunca las alcanza (el wildcard '/*' captura todo)
 
 router.get('/thumb/*', async (req, res) => {
   try {
     const requestedPath = req.params[0];
-
-    if (!requestedPath) {
-      return res.status(400).json({ error: 'Path required' });
-    }
+    if (!requestedPath) return res.status(400).json({ error: 'Path required' });
 
     const fullPath = sanitizePath(requestedPath, BASE_DIR);
-
     if (!fullPath) {
-      console.warn('Blocked thumbnail path traversal attempt: ' + requestedPath);
+      logger.warn({ path: requestedPath }, 'Blocked thumbnail path traversal attempt');
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    if (!existsSync(fullPath)) {
-      return res.status(404).json({ error: 'Image not found' });
-    }
+    if (!existsSync(fullPath)) return res.status(404).json({ error: 'Image not found' });
 
     const stats = await stat(fullPath);
-    if (!stats.isFile()) {
-      return res.status(400).json({ error: 'Not a file' });
-    }
+    if (!stats.isFile()) return res.status(400).json({ error: 'Not a file' });
 
     const ext = path.extname(fullPath).toLowerCase();
 
@@ -54,34 +47,24 @@ router.get('/thumb/*', async (req, res) => {
         .toBuffer();
 
       const outputExt = ext === '.png' ? '.png' : '.webp';
-      const outputMimeType = MIME_TYPES[outputExt] || 'image/webp';
-
-      res.setHeader('Content-Type', outputMimeType);
+      res.setHeader('Content-Type', MIME_TYPES[outputExt] || 'image/webp');
       res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
       res.setHeader('Content-Length', thumbnail.length);
-
       res.send(thumbnail);
     } catch (sharpError) {
-      console.error('Error processing thumbnail:', sharpError.message);
+      logger.warn({ path: fullPath, error: sharpError.message }, 'Thumbnail fallback to original');
 
       const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
       const fileStats = await stat(fullPath);
-
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Content-Length', fileStats.size);
       res.setHeader('Cache-Control', 'public, max-age=604800');
-
-      const stream = createReadStream(fullPath);
-      stream.pipe(res);
+      createReadStream(fullPath).pipe(res);
     }
-
   } catch (error) {
-    console.error('Error en /api/thumb:', error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal server error', message: error.message });
-    } else {
-      res.end();
-    }
+    logger.error({ error: error.message }, 'Error en /api/thumb');
+    if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
+    else res.end();
   }
 });
 
@@ -90,117 +73,72 @@ router.get('/archive/*', async (req, res) => {
     const requestedPath = req.params[0];
     const page = parseInt(req.query.page) || 0;
 
-    if (!requestedPath) {
-      return res.status(400).json({ error: 'Path required' });
-    }
+    if (!requestedPath) return res.status(400).json({ error: 'Path required' });
 
     const fullPath = sanitizePath(requestedPath, BASE_DIR);
-
     if (!fullPath) {
-      console.warn('Blocked archive path traversal attempt: ' + requestedPath);
+      logger.warn({ path: requestedPath }, 'Blocked archive path traversal attempt');
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    if (!existsSync(fullPath)) {
-      return res.status(404).json({ error: 'Archive not found' });
-    }
+    if (!existsSync(fullPath)) return res.status(404).json({ error: 'Archive not found' });
 
     const ext = path.extname(fullPath).toLowerCase();
-    if (ext !== '.cbz' && ext !== '.zip') {
-      return res.status(400).json({ error: 'Not an archive file' });
-    }
+    if (ext !== '.cbz' && ext !== '.zip') return res.status(400).json({ error: 'Not an archive file' });
 
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-
     const pages = [];
-
     const directory = await unzipper.Open.file(fullPath);
 
     directory.files
       .filter(file => {
-        // Zip-Slip protection
         const normalizedEntryPath = path.normalize(file.path);
-        const resolvedEntryPath = path.resolve('/', normalizedEntryPath);
-        const resolvedArchiveBase = path.resolve('/');
-
         if (normalizedEntryPath.includes('..') || path.isAbsolute(normalizedEntryPath)) {
-          console.warn('Blocked zip-slip attempt in archive: ' + file.path);
+          logger.warn({ entry: file.path }, 'Blocked zip-slip in archive');
           return false;
         }
-
-        if (!resolvedEntryPath.startsWith(resolvedArchiveBase)) {
-          console.warn('Blocked zip-slip attempt in archive: ' + file.path);
-          return false;
-        }
-
         if (/[\x00-\x1f]/.test(file.path)) {
-          console.warn('Blocked control character in archive entry: ' + file.path);
+          logger.warn({ entry: file.path }, 'Blocked control char in archive entry');
           return false;
         }
-
-        const fileExt = path.extname(file.path).toLowerCase();
-        return imageExtensions.includes(fileExt);
+        return imageExtensions.includes(path.extname(file.path).toLowerCase());
       })
       .sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }))
-      .forEach((file, index) => {
-        pages.push({
-          index,
-          file
-        });
-      });
+      .forEach((file, index) => pages.push({ index, file }));
 
-    if (page < 0 || page >= pages.length) {
-      return res.status(404).json({ error: 'Page not found' });
-    }
+    if (page < 0 || page >= pages.length) return res.status(404).json({ error: 'Page not found' });
 
     const pageFile = pages[page].file;
     const pageExt = path.extname(pageFile.path).toLowerCase();
-    const mimeType = MIME_TYPES[pageExt] || 'application/octet-stream';
-
-    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Type', MIME_TYPES[pageExt] || 'application/octet-stream');
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.setHeader('X-Archive-Page', page);
     res.setHeader('X-Total-Pages', pages.length);
-
-    const stream = pageFile.stream();
-    stream.pipe(res);
-
+    pageFile.stream().pipe(res);
   } catch (error) {
-    console.error('Error en /api/archive:', error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal server error', message: error.message });
-    } else {
-      res.end();
-    }
+    logger.error({ error: error.message }, 'Error en /api/archive');
+    if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
+    else res.end();
   }
 });
 
 router.get('/metadata/*', async (req, res) => {
   try {
     const requestedPath = req.params[0];
-
-    if (!requestedPath) {
-      return res.status(400).json({ error: 'Path required' });
-    }
+    if (!requestedPath) return res.status(400).json({ error: 'Path required' });
 
     const fullPath = sanitizePath(requestedPath, BASE_DIR);
-
     if (!fullPath) {
-      console.warn('Blocked metadata path traversal attempt: ' + requestedPath);
+      logger.warn({ path: requestedPath }, 'Blocked metadata path traversal attempt');
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    if (!existsSync(fullPath)) {
-      return res.status(404).json({ error: 'Image not found' });
-    }
+    if (!existsSync(fullPath)) return res.status(404).json({ error: 'Image not found' });
 
     const stats = await stat(fullPath);
-    if (!stats.isFile()) {
-      return res.status(400).json({ error: 'Not a file' });
-    }
+    if (!stats.isFile()) return res.status(400).json({ error: 'Not a file' });
 
     const metadata = await sharp(fullPath).metadata();
-
     res.json({
       path: requestedPath,
       width: metadata.width || 0,
@@ -208,40 +146,28 @@ router.get('/metadata/*', async (req, res) => {
       size: stats.size,
       format: metadata.format
     });
-
   } catch (error) {
-    console.error('Error en /api/metadata:', error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal server error', message: error.message });
-    } else {
-      res.end();
-    }
+    logger.error({ error: error.message }, 'Error en /api/metadata');
+    if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
+    else res.end();
   }
 });
 
 router.get('/*', async (req, res) => {
   try {
     const requestedPath = req.params[0];
-
-    if (!requestedPath) {
-      return res.status(400).json({ error: 'Path required' });
-    }
+    if (!requestedPath) return res.status(400).json({ error: 'Path required' });
 
     const fullPath = sanitizePath(requestedPath, BASE_DIR);
-
     if (!fullPath) {
-      console.warn('Blocked path traversal attempt: ' + requestedPath);
+      logger.warn({ path: requestedPath }, 'Blocked path traversal attempt');
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    if (!existsSync(fullPath)) {
-      return res.status(404).json({ error: 'Image not found' });
-    }
+    if (!existsSync(fullPath)) return res.status(404).json({ error: 'Image not found' });
 
     const stats = await stat(fullPath);
-    if (!stats.isFile()) {
-      return res.status(400).json({ error: 'Not a file' });
-    }
+    if (!stats.isFile()) return res.status(400).json({ error: 'Not a file' });
 
     const ext = path.extname(fullPath).toLowerCase();
     const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
@@ -254,23 +180,15 @@ router.get('/*', async (req, res) => {
     fileStream.pipe(res);
 
     fileStream.on('error', (error) => {
-      console.error('Stream error:', error.message);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Stream error' });
-      }
+      logger.error({ error: error.message }, 'Stream error');
+      if (!res.headersSent) res.status(500).json({ error: 'Stream error' });
       res.end();
     });
 
-    res.on('error', (error) => {
-      console.error('Response error:', error.message);
-      fileStream.destroy();
-    });
-
+    res.on('error', () => fileStream.destroy());
   } catch (error) {
-    console.error('Error en /api/image:', error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal server error', message: error.message });
-    }
+    logger.error({ error: error.message }, 'Error en /api/image');
+    if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
   }
 });
 

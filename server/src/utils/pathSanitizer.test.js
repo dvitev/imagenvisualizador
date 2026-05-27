@@ -51,6 +51,19 @@ describe('pathSanitizer', () => {
     it('should block dangerous filesystem characters', () => {
       expect(sanitizePath('image<>bad.jpg', BASE_DIR)).toBeNull()
       expect(sanitizePath('image|bad.jpg', BASE_DIR)).toBeNull()
+      expect(sanitizePath('~/etc/passwd', BASE_DIR)).toBeNull()
+    })
+
+    it('should handle paths with literal percent sign (safeDecodeURI)', () => {
+      // Nombres de archivo con % no seguido de hex valido deben funcionar
+      const result = sanitizePath('100%calidad.jpg', BASE_DIR)
+      expect(result).not.toBeNull()
+      expect(result).toContain('100%calidad.jpg')
+    })
+
+    it('should block tilde character (~) for home directory', () => {
+      expect(sanitizePath('~/etc/passwd', BASE_DIR)).toBeNull()
+      expect(sanitizePath('subdir/~/image.jpg', BASE_DIR)).toBeNull()
     })
 
     it('should block URI-encoded Unicode traversal attempts', () => {

@@ -55,7 +55,8 @@ export function sanitizePath(requestedPath, baseDir) {
   }
 
   // 4. Rechazar caracteres peligrosos en nombres de archivo
-  if (/[<>"|?*]/.test(normalizedPath)) {
+  //    Incluye ~ (home directory en Unix) y caracteres de control
+  if (/[<>"|?*~]/.test(normalizedPath)) {
     return null
   }
 
