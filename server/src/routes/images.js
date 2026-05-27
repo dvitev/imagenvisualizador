@@ -18,60 +18,8 @@ const MIME_TYPES = {
 
 const BASE_DIR = process.env.IMAGES_DIR;
 
-router.get('/*', async (req, res) => {
-  try {
-    const requestedPath = req.params[0];
-
-    if (!requestedPath) {
-      return res.status(400).json({ error: 'Path required' });
-    }
-
-    const fullPath = sanitizePath(requestedPath, BASE_DIR);
-
-    if (!fullPath) {
-      console.warn(`Blocked path traversal attempt: ${requestedPath}`);
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    if (!existsSync(fullPath)) {
-      return res.status(404).json({ error: 'Image not found' });
-    }
-
-    const stats = await stat(fullPath);
-    if (!stats.isFile()) {
-      return res.status(400).json({ error: 'Not a file' });
-    }
-
-    const ext = path.extname(fullPath).toLowerCase();
-    const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
-
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.setHeader('Accept-Ranges', 'bytes');
-
-    const fileStream = createReadStream(fullPath, { highWaterMark: 64 * 1024 });
-    fileStream.pipe(res);
-
-    fileStream.on('error', (error) => {
-      console.error('Stream error:', error.message);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Stream error' });
-      }
-      res.end();
-    });
-
-    res.on('error', (error) => {
-      console.error('Response error:', error.message);
-      fileStream.destroy();
-    });
-
-  } catch (error) {
-    console.error('Error en /api/image:', error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal server error', message: error.message });
-    }
-  }
-});
+// ⚠️ IMPORTANTE: Las rutas específicas deben declararse ANTES que la genérica '/*'
+// sino Express nunca las alcanza (el wildcard '/*' captura todo)
 
 router.get('/thumb/*', async (req, res) => {
   try {
@@ -84,7 +32,7 @@ router.get('/thumb/*', async (req, res) => {
     const fullPath = sanitizePath(requestedPath, BASE_DIR);
 
     if (!fullPath) {
-      console.warn(`Blocked thumbnail path traversal attempt: ${requestedPath}`);
+      console.warn('Blocked thumbnail path traversal attempt: ' + requestedPath);
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -146,7 +94,7 @@ router.get('/archive/*', async (req, res) => {
     const fullPath = sanitizePath(requestedPath, BASE_DIR);
 
     if (!fullPath) {
-      console.warn(`Blocked archive path traversal attempt: ${requestedPath}`);
+      console.warn('Blocked archive path traversal attempt: ' + requestedPath);
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -167,24 +115,23 @@ router.get('/archive/*', async (req, res) => {
 
     directory.files
       .filter(file => {
-        // 🔒 Zip-Slip protection: rechazar paths que escapen del directorio base
+        // Zip-Slip protection
         const normalizedEntryPath = path.normalize(file.path);
         const resolvedEntryPath = path.resolve('/', normalizedEntryPath);
         const resolvedArchiveBase = path.resolve('/');
-        
+
         if (normalizedEntryPath.includes('..') || path.isAbsolute(normalizedEntryPath)) {
-          console.warn(`Blocked zip-slip attempt in archive: ${file.path}`);
+          console.warn('Blocked zip-slip attempt in archive: ' + file.path);
           return false;
         }
 
         if (!resolvedEntryPath.startsWith(resolvedArchiveBase)) {
-          console.warn(`Blocked zip-slip attempt in archive: ${file.path}`);
+          console.warn('Blocked zip-slip attempt in archive: ' + file.path);
           return false;
         }
 
-        // Rechazar caracteres de control en nombres de archivo
         if (/[\x00-\x1f]/.test(file.path)) {
-          console.warn(`Blocked control character in archive entry: ${file.path}`);
+          console.warn('Blocked control character in archive entry: ' + file.path);
           return false;
         }
 
@@ -236,7 +183,7 @@ router.get('/metadata/*', async (req, res) => {
     const fullPath = sanitizePath(requestedPath, BASE_DIR);
 
     if (!fullPath) {
-      console.warn(`Blocked metadata path traversal attempt: ${requestedPath}`);
+      console.warn('Blocked metadata path traversal attempt: ' + requestedPath);
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -265,6 +212,61 @@ router.get('/metadata/*', async (req, res) => {
       res.status(500).json({ error: 'Internal server error', message: error.message });
     } else {
       res.end();
+    }
+  }
+});
+
+router.get('/*', async (req, res) => {
+  try {
+    const requestedPath = req.params[0];
+
+    if (!requestedPath) {
+      return res.status(400).json({ error: 'Path required' });
+    }
+
+    const fullPath = sanitizePath(requestedPath, BASE_DIR);
+
+    if (!fullPath) {
+      console.warn('Blocked path traversal attempt: ' + requestedPath);
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    if (!existsSync(fullPath)) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+
+    const stats = await stat(fullPath);
+    if (!stats.isFile()) {
+      return res.status(400).json({ error: 'Not a file' });
+    }
+
+    const ext = path.extname(fullPath).toLowerCase();
+    const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
+
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const fileStream = createReadStream(fullPath, { highWaterMark: 64 * 1024 });
+    fileStream.pipe(res);
+
+    fileStream.on('error', (error) => {
+      console.error('Stream error:', error.message);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Stream error' });
+      }
+      res.end();
+    });
+
+    res.on('error', (error) => {
+      console.error('Response error:', error.message);
+      fileStream.destroy();
+    });
+
+  } catch (error) {
+    console.error('Error en /api/image:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error', message: error.message });
     }
   }
 });

@@ -1,39 +1,50 @@
 import path from 'path'
 
 // Conjunto de caracteres Unicode que visual o funcionalmente se asemejan a puntos (.)
-// U+002E = . (punto ASCII)
-// U+2025 = ‥ (punto doble)
-// U+2026 = … (elipsis)
-// U+FF0E = ． (punto full-width)
-// U+FF61 = ｡ (punto medio-width)
-// U+3002 = 。 (punto ideográfico)
-// U+2E2F = ⸯ (punto vertical)
-// U+2E3C = ⸼ (punto estenográfico)
-const DOT_LIKE_CHARS = /[\u002E\u2025\u2026\uFF0E\uFF61\u3002\u2E2F\u2E3C]/g
+const DOT_LIKE_CHARS = /[\u2025\u2026\uFF0E\uFF61\u3002\u2E2F\u2E3C]/g
+
+/**
+ * Decodifica URI de forma segura sin lanzar excepción.
+ * Express ya decodifica req.params automáticamente con decodeURIComponent,
+ * así que esto es solo para capturar doble-encoding malicioso (%252e%252e%252f).
+ * Si falla la decodificación (ej: % suelto en el nombre del archivo),
+ * devuelve el string original sin decodificar.
+ */
+function safeDecodeURI(str) {
+  try {
+    // Solo decodificar si hay secuencias %xx potenciales
+    if (!/%[0-9a-fA-F]{2}/.test(str)) {
+      return str
+    }
+    const decoded = decodeURIComponent(str)
+    // Verificar que la decodificación fue exitosa y el string cambió
+    return decoded
+  } catch {
+    // Si hay un % inválido (ej: parte del nombre del archivo),
+    // devolver el string original sin modificar
+    return str
+  }
+}
 
 /**
  * Sanitiza un path solicitado para prevenir path traversal.
- * - Normaliza Unicode (NFC) para colapsar caracteres compuestos
- * - Decodifica URI encoding
- * - Rechaza caracteres de control (0x00-0x1F) y peligrosos (<, >, ", |, ?, *)
- * - Detecta path traversal usando caracteres Unicode similares a puntos
- * - Verifica que el path resuelto esté dentro del directorio base
+ *
+ * NOTA: Express ya decodifica req.params con decodeURIComponent, por lo que
+ * requestedPath llega completamente decodificado. safeDecodeURI maneja
+ * casos de doble-encoding malicioso sin romper paths con % literales.
  */
 export function sanitizePath(requestedPath, baseDir) {
-  // Si el path está vacío o no es string, devolver el directorio base
   if (!requestedPath || typeof requestedPath !== 'string') {
     return path.resolve(baseDir)
   }
 
   const trimmedPath = requestedPath.trim()
-
-  // Si después de trim está vacío, devolver el directorio base
   if (trimmedPath === '') {
     return path.resolve(baseDir)
   }
 
-  // 1. Decodificar URI (previene doble-encoding)
-  let normalizedPath = decodeURIComponent(trimmedPath)
+  // 1. Decodificar URI de forma segura (double-encoding, % literales)
+  let normalizedPath = safeDecodeURI(trimmedPath)
 
   // 2. Normalizar Unicode a NFC
   normalizedPath = normalizedPath.normalize('NFC')
@@ -49,12 +60,11 @@ export function sanitizePath(requestedPath, baseDir) {
   }
 
   // 5. Detectar path traversal con caracteres Unicode similares a puntos
-  //    Reemplazar puntos Unicode por puntos ASCII y verificar si hay ..
+  //    Reemplazar puntos Unicode (NO el ASCII . que es válido en paths)
+  //    por puntos ASCII y verificar si hay ..
   const asciiDotsPath = normalizedPath.replace(DOT_LIKE_CHARS, '.')
-  // Verificar segmentos que sean SOLO puntos
   const segments = asciiDotsPath.split(/[/\\]/)
   for (const segment of segments) {
-    // Si un segmento consiste solo de puntos y tiene al menos 2, es traversal
     if (/^\.+$/.test(segment) && segment.length >= 2) {
       return null
     }
@@ -68,7 +78,7 @@ export function sanitizePath(requestedPath, baseDir) {
     return null
   }
 
-  // 8. Verificar que no contenga segmentos de solo puntos (después de normalize)
+  // 8. Verificar que no contenga segmentos de solo puntos
   const normalizedSegments = normalizedPath.split(/[/\\]/)
   for (const segment of normalizedSegments) {
     if (/^\.{2,}$/.test(segment)) {
