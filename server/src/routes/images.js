@@ -19,10 +19,15 @@ const MIME_TYPES = {
 
 const BASE_DIR = process.env.IMAGES_DIR;
 
-// ⚠️ Las rutas específicas deben declararse ANTES que la genérica '/*'
-// sino Express nunca las alcanza (el wildcard '/*' captura todo)
+// M5: Sub-routers para evitar dependencia del orden de rutas
+// Cada sub-router es independiente y no compite con el wildcard
 
-router.get('/thumb/*', async (req, res) => {
+const thumbRouter = Router();
+const archiveRouter = Router();
+const metadataRouter = Router();
+const imageRouter = Router();
+
+thumbRouter.get('/*', async (req, res) => {
   try {
     const requestedPath = req.params[0];
     if (!requestedPath) return res.status(400).json({ error: 'Path required' });
@@ -68,7 +73,7 @@ router.get('/thumb/*', async (req, res) => {
   }
 });
 
-router.get('/archive/*', async (req, res) => {
+archiveRouter.get('/*', async (req, res) => {
   try {
     const requestedPath = req.params[0];
     const page = parseInt(req.query.page) || 0;
@@ -122,7 +127,7 @@ router.get('/archive/*', async (req, res) => {
   }
 });
 
-router.get('/metadata/*', async (req, res) => {
+metadataRouter.get('/*', async (req, res) => {
   try {
     const requestedPath = req.params[0];
     if (!requestedPath) return res.status(400).json({ error: 'Path required' });
@@ -153,7 +158,7 @@ router.get('/metadata/*', async (req, res) => {
   }
 });
 
-router.get('/*', async (req, res) => {
+imageRouter.get('/*', async (req, res) => {
   try {
     const requestedPath = req.params[0];
     if (!requestedPath) return res.status(400).json({ error: 'Path required' });
@@ -191,5 +196,11 @@ router.get('/*', async (req, res) => {
     if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Montar sub-routers (el orden ya no importa)
+router.use('/thumb', thumbRouter);
+router.use('/archive', archiveRouter);
+router.use('/metadata', metadataRouter);
+router.use('/', imageRouter);
 
 export default router;

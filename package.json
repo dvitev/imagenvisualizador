@@ -9,6 +9,7 @@
     "dev:client": "cd client && npm run dev",
     "build": "cd client && npm run build",
     "start": "cd server && npm start",
+    "start:prod": "cd client && npm run build && cd ../server && npm start",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
     "docker:up": "docker-compose up -d --build",
     "docker:down": "docker-compose down",

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getStructure } from '../imageScanner.js';
+import { getStructure, buildTree, isTruncated } from '../imageScanner.js';
 import logger from '../utils/logger.js';
 
 const router = Router();
@@ -36,6 +36,7 @@ router.get('/', async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=60');
     res.setHeader('X-Cache', 'MISS');
     res.setHeader('X-Total-Folders', result.length);
+    if (isTruncated()) res.setHeader('X-Truncated', 'true');
     res.json(result);
   } catch (error) {
     logger.error({ error: error.message }, 'Error en /api/structure');
@@ -52,8 +53,9 @@ router.get('/flat', async (req, res) => {
     const end = start + limit;
     const total = structure.length;
 
-    // Si no hay paginación explícita, devolver todo (compatibilidad)
-    if (!req.query.page && !req.query.limit) {
+    // M3: Forzar paginación por defecto si no hay parámetros
+    // Si se pide explícitamente sin paginar (?nopaginate=true), devolver todo
+    if (req.query.nopaginate === 'true') {
       const result = structure.map(item => ({
         folder: item.folder,
         fileName: item.fileName,
@@ -61,6 +63,7 @@ router.get('/flat', async (req, res) => {
         isArchive: item.isArchive
       }));
       res.setHeader('Cache-Control', 'public, max-age=60');
+      res.setHeader('X-Total-Items', total);
       return res.json(result);
     }
 
@@ -74,6 +77,7 @@ router.get('/flat', async (req, res) => {
     res.setHeader('X-Total-Items', total);
     res.setHeader('X-Page', page);
     res.setHeader('X-Page-Size', paginated.length);
+    if (isTruncated()) res.setHeader('X-Truncated', 'true');
     res.json(paginated);
   } catch (error) {
     logger.error({ error: error.message }, 'Error en /api/structure/flat');
@@ -89,7 +93,6 @@ router.get('/tree', async (req, res) => {
       return res.json(cached.data);
     }
 
-    const { buildTree } = await import('../imageScanner.js');
     const structure = await getStructure(process.env.IMAGES_DIR);
     const tree = buildTree(structure);
 
@@ -97,6 +100,7 @@ router.get('/tree', async (req, res) => {
 
     res.setHeader('Cache-Control', 'public, max-age=60');
     res.setHeader('X-Cache', 'MISS');
+    res.setHeader('X-Total-Items', structure.length);
     if (isTruncated()) res.setHeader('X-Truncated', 'true');
     res.json(tree);
   } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { VirtuosoGrid } from 'react-virtuoso'
 import FolderCard from './components/FolderCard.jsx'
@@ -45,6 +45,15 @@ function App() {
     queryFn: fetchStructure
   })
 
+  // C1: Cache structure identity para estabilizar referencias en useMemo
+  const structureKeyRef = useRef(null)
+  if (structure) {
+    // Generar key basado en conteo de carpetas (barato, sin serializar todo)
+    const newKey = `${structure.length}:${structure.reduce((s, f) => s + f.images.length, 0)}`
+    structureKeyRef.current = newKey
+  }
+  const structureIdentity = structure ? structureKeyRef.current : null
+
   const folders = useMemo(() => {
     if (!structure) return []
     return structure.map((folder) => ({
@@ -59,6 +68,7 @@ function App() {
     }))
   }, [structure])
 
+  // C1: Memoizar currentImages con dependencia estable (selectedFolder + structureIdentity)
   const currentImages = useMemo(() => {
     if (!selectedFolder || !structure) return []
     
@@ -70,7 +80,19 @@ function App() {
       ...img,
       folder: selectedFolder
     }))
-  }, [selectedFolder, structure])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFolder, structureIdentity])
+
+  // Cache de currentImages por folder para acceso síncrono desde handlers
+  const folderImageCountCache = useMemo(() => {
+    if (!structure) return {}
+    const cache = {}
+    structure.forEach(f => {
+      const normalized = f.folder.replace(/\\/g, '/')
+      cache[normalized] = f.images.length
+    })
+    return cache
+  }, [structure])
 
   useEffect(() => {
     if (selectedFolder) {
@@ -105,13 +127,23 @@ function App() {
     setShowSearch(false)
   }, [])
 
+  // C2: handleContinueSelect — NO depender de currentImages.length (es state async)
+  // En su lugar, usar folderImageCountCache para lookup síncrono
   const handleContinueSelect = useCallback((folderPath) => {
     setSelectedFolder(folderPath)
     const progress = getFolderProgress(folderPath)
-    if (progress) {
-      setReaderIndex(Math.min(progress.lastIndex, currentImages.length - 1))
+    if (progress && progress.lastIndex >= 0) {
+      // Calcular max index válido desde el cache sincrónico
+      const normalizedPath = folderPath.replace(/\\/g, '/')
+      const totalImages = folderImageCountCache[normalizedPath] || 0
+      const validIndex = totalImages > 0
+        ? Math.min(progress.lastIndex, totalImages - 1)
+        : 0
+      setReaderIndex(Math.max(0, validIndex))
+    } else {
+      setReaderIndex(0)
     }
-  }, [currentImages.length])
+  }, [folderImageCountCache])
 
   const handleProgressUpdate = useCallback((folderPath, index, total) => {
     saveProgress(folderPath, index, total)

@@ -53,7 +53,7 @@ export function setupFileWatcher(baseDir, server) {
       stabilityThreshold: 2000,
       pollInterval: 500
     },
-    depth: 10
+    depth: 15  // Sincronizado con MAX_DEPTH de imageScanner.js
   });
 
   // M4: Solo invalidar cache, NO re-escanear con Sharp
