@@ -50,7 +50,7 @@ function App() {
     return structure.map((folder) => ({
       name: folder.folder,
       displayName: folder.folder.split(/[/\\]/).pop(),
-      path: folder.folder,
+      path: folder.folder.replace(/\\/g, '/'),
       imageCount: folder.images.length,
       images: folder.images.map((img) => ({
         ...img,
@@ -62,7 +62,8 @@ function App() {
   const currentImages = useMemo(() => {
     if (!selectedFolder || !structure) return []
     
-    const folderData = structure.find((f) => f.folder === selectedFolder)
+    const normalizedSelected = selectedFolder.replace(/\\/g, '/')
+    const folderData = structure.find((f) => f.folder.replace(/\\/g, '/') === normalizedSelected)
     if (!folderData) return []
     
     return folderData.images.map((img) => ({
@@ -252,9 +253,8 @@ function App() {
                     }}
                     loading="lazy"
                     onError={(e) => {
-                      const path = item.relativePath
                       e.target.onerror = null
-                      e.target.src = `/api/image/${path}`
+                      e.target.src = `/api/image/${encodeURIComponent(item.relativePath)}`
                     }}
                   />
                 </div>

@@ -65,7 +65,10 @@ router.get('/thumb/*', async (req, res) => {
       console.error('Error processing thumbnail:', sharpError.message);
 
       const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
+      const fileStats = await stat(fullPath);
+
       res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Length', fileStats.size);
       res.setHeader('Cache-Control', 'public, max-age=604800');
 
       const stream = createReadStream(fullPath);
