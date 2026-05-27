@@ -8,7 +8,7 @@ const ARCHIVE_EXTENSIONS = new Set(['.cbz']);
 const SYSTEM_FILES = new Set(['.ds_store', 'thumbs.db', 'desktop.ini', '@ea_dir']);
 const EXCLUDED_EXTENSIONS = new Set(['.zip', '.rar', '.cbr', '.exe', '.pdf', '.txt', '.nfo', '.sfv', '.log', '.tmp', '.torrent']);
 const EXCLUDED_DIRS = new Set([
-  'torrents', '.git', 'node_modules', '.trash', '\.bin', '__macosx',
+  'torrents', '.git', 'node_modules', '.trash', '$recycle.bin', '__macosx',
   '@recycle', '@downloads', '@incomplete', 'incomplete', 'downloads'
 ]);
 
@@ -55,13 +55,17 @@ async function scanDirectoryIterative(baseDir) {
         const fullPath = path.join(currentDir, entry.name);
 
         if (entry.isDirectory()) {
-          if (!shouldExcludeDirectory(entry.name)) queue.push({ path: fullPath, depth: depth + 1 });
+          if (!shouldExcludeDirectory(entry.name)) {
+            queue.push({ path: fullPath, depth: depth + 1 });
+          }
         } else if (entry.isFile() && !shouldExcludeFile(entry.name) && (isValidImage(entry.name) || isValidArchive(entry.name))) {
           const relativePath = path.relative(baseDir, fullPath);
+          // Normalizar separadores de Windows (\ -> /) para consistencia
+          const normalizedPath = relativePath.split(path.sep).join('/');
           results.push({
-            folder: path.dirname(relativePath) === '.' ? path.basename(baseDir) : path.dirname(relativePath),
+            folder: path.dirname(normalizedPath) === '.' ? path.basename(baseDir) : path.dirname(normalizedPath),
             fileName: entry.name,
-            relativePath: relativePath.replace(/\\\\/g, '/'),
+            relativePath: normalizedPath,
             fullPath,
             isArchive: isValidArchive(entry.name)
           });
@@ -110,12 +114,11 @@ export async function getStructure(baseDir) {
   }
 }
 
-// P1: Metadata se obtiene LAZY (solo para las imágenes que se ven)
 export async function getStructureWithMetadata(baseDir) {
   const structure = await getStructure(baseDir);
   return structure.map(item => {
     if (item.isArchive) return { ...item, width: 0, height: 0, size: 0 };
-    return { ...item, width: null, height: null, size: null }; // metadata lazy
+    return { ...item, width: null, height: null, size: null };
   });
 }
 
@@ -143,10 +146,9 @@ export async function scanDirectory(baseDir) {
   return results;
 }
 
-// P2: buildTree corregido — conteo recursivo bottom-up
 export function buildTree(structure) {
   const root = { name: 'root', path: '', type: 'folder', children: [] };
-  const nodeMap = new Map(); // folderPath → node
+  const nodeMap = new Map();
 
   structure.forEach((item) => {
     const parts = item.folder.split('/');
@@ -172,7 +174,6 @@ export function buildTree(structure) {
     });
   });
 
-  // Conteo bottom-up (recursivo, evita duplicación)
   function countImages(node) {
     if (node.type !== 'folder') return 1;
     node.totalImages = node.children.reduce((sum, child) => sum + countImages(child), 0);
