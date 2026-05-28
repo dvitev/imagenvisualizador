@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import http from 'http'
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs'
-import { resolve } from 'path'
+import { resolve, join } from 'path'
 
 // Crear directorio temporal de pruebas y setear IMAGES_DIR
 // ANTES de importar el servidor (images.js lee IMAGES_DIR al cargarse)
-const TEST_IMAGES_DIR = resolve(import.meta.dirname, '..', '__test_images__')
+const TEST_IMAGES_DIR = join(process.cwd(), '__test_images__')
 
 if (!process.env.IMAGES_DIR) {
   // Fallback: crear directorio temporal para los tests
