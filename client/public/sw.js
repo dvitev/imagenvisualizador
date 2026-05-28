@@ -1,7 +1,7 @@
-const CACHE_NAME = 'manga-reader-v2'
-const STATIC_CACHE = 'static-v2'
-const IMAGE_CACHE = 'images-v2'
-const API_CACHE = 'api-v2'
+const CACHE_NAME = 'imagenvisualizador-v3'
+const STATIC_CACHE = 'imagenvisualizador-static-v3'
+const IMAGE_CACHE = 'imagenvisualizador-images-v3'
+const API_CACHE = 'imagenvisualizador-api-v3'
 
 const STATIC_ASSETS = [
   '/',

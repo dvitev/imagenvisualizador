@@ -15,9 +15,17 @@ const EXCLUDED_DIRS = new Set([
 const MAX_DEPTH = 15;
 const MAX_ITEMS = 50000;
 
+// M2: Sistema de directorios exactos — NO excluye por prefijo (.
+// y __) porque carpetas como .manga o __favorites__ deben permitirse
+const SYSTEM_DIRS_EXACT = new Set([
+  '.git', '.svn', '.hg', '.vscode', '.idea',
+  '__pycache__', '__pypcache__',
+  '@eadir', '@ea_dir'
+]);
+
 function shouldExcludeDirectory(dirname) {
   const lowerName = dirname.toLowerCase();
-  return EXCLUDED_DIRS.has(lowerName) || lowerName.startsWith('.') || lowerName.startsWith('__');
+  return EXCLUDED_DIRS.has(lowerName) || SYSTEM_DIRS_EXACT.has(lowerName);
 }
 
 function shouldExcludeFile(filename) {
@@ -84,6 +92,9 @@ async function scanDirectoryIterative(baseDir) {
     wasTruncated = false;
   }
 
+  lastScanTime = Date.now();
+  lastScanItemCount = results.length;
+
   results.sort((a, b) => {
     const fc = a.folder.localeCompare(b.folder);
     return fc !== 0 ? fc : a.fileName.localeCompare(b.fileName, undefined, { numeric: true, sensitivity: 'base' });
@@ -96,6 +107,7 @@ let cachedStructure = null;
 let scanPromise = null;
 let cachedTree = null;
 let lastScanTime = 0;
+let lastScanItemCount = 0;
 let wasTruncated = false;
 const CACHE_DURATION = 300000;
 
@@ -197,6 +209,17 @@ export async function getTree(baseDir) {
 
 export function isTruncated() {
   return wasTruncated;
+}
+
+export function getScanStats() {
+  return {
+    truncated: isTruncated(),
+    maxItems: MAX_ITEMS,
+    maxDepth: MAX_DEPTH,
+    lastScanTime: lastScanTime,
+    lastScanItemCount: lastScanItemCount,
+    cacheTTL: CACHE_DURATION
+  };
 }
 
 export function invalidateCache() {

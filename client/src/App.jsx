@@ -84,14 +84,14 @@ function App() {
   }, [selectedFolder, structureIdentity])
 
   // Cache de currentImages por folder para acceso síncrono desde handlers
-  const folderImageCountCache = useMemo(() => {
-    if (!structure) return {}
-    const cache = {}
-    structure.forEach(f => {
-      const normalized = f.folder.replace(/\\/g, '/')
-      cache[normalized] = f.images.length
-    })
-    return cache
+  const folderImageCountCache = useRef(new Map())
+
+  useEffect(() => {
+    if (structure) {
+      const cache = new Map()
+      structure.forEach(f => cache.set(f.folder.replace(/\\/g, '/'), f.images.length))
+      folderImageCountCache.current = cache
+    }
   }, [structure])
 
   useEffect(() => {
@@ -128,22 +128,16 @@ function App() {
   }, [])
 
   // C2: handleContinueSelect — NO depender de currentImages.length (es state async)
-  // En su lugar, usar folderImageCountCache para lookup síncrono
+  // En su lugar, usar folderImageCountCache como ref para lookup síncrono estable
   const handleContinueSelect = useCallback((folderPath) => {
+    const normalizedPath = folderPath.replace(/\\/g, '/')
+    const count = folderImageCountCache.current.get(normalizedPath)
+    // GUARD: no navegar si la carpeta está vacía o no existe en el cache
+    if (!count || count === 0) return
+    const savedIndex = getFolderProgress(folderPath)
+    setReaderIndex(savedIndex?.lastIndex ?? 0)
     setSelectedFolder(folderPath)
-    const progress = getFolderProgress(folderPath)
-    if (progress && progress.lastIndex >= 0) {
-      // Calcular max index válido desde el cache sincrónico
-      const normalizedPath = folderPath.replace(/\\/g, '/')
-      const totalImages = folderImageCountCache[normalizedPath] || 0
-      const validIndex = totalImages > 0
-        ? Math.min(progress.lastIndex, totalImages - 1)
-        : 0
-      setReaderIndex(Math.max(0, validIndex))
-    } else {
-      setReaderIndex(0)
-    }
-  }, [folderImageCountCache])
+  }, [])
 
   const handleProgressUpdate = useCallback((folderPath, index, total) => {
     saveProgress(folderPath, index, total)

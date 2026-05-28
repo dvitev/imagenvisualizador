@@ -5,7 +5,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: manga-reader-server
+    container_name: imagenvisualizador-server
     restart: unless-stopped
     volumes:
       # Mount your images directory (read-only for security)
@@ -18,7 +18,7 @@ services:
       - HOST=0.0.0.0
       - NODE_ENV=production
     networks:
-      - manga-network
+      - imagenvisualizador-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3001/api/health"]
       interval: 30s
@@ -37,7 +37,7 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
-    container_name: manga-reader-client
+    container_name: imagenvisualizador-client
     restart: unless-stopped
     ports:
       - "3000:80"
@@ -45,7 +45,7 @@ services:
       server:
         condition: service_healthy
     networks:
-      - manga-network
+      - imagenvisualizador-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
       interval: 30s
@@ -54,5 +54,5 @@ services:
       start_period: 5s
 
 networks:
-  manga-network:
+  imagenvisualizador-network:
     driver: bridge

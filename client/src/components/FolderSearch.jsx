@@ -1,18 +1,40 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import debounce from '../utils/debounce.js'
 import styles from './FolderSearch.module.css'
 
 function FolderSearch({ folders, onSelect, onClose }) {
   const [query, setQuery] = useState('')
+  const [filtered, setFiltered] = useState(folders)
   const inputRef = useRef(null)
+
+  // M14: Debounced filter para no bloquear el UI con 50K+ carpetas
+  const debouncedFilter = useMemo(
+    () => debounce((value) => {
+      const lower = value.toLowerCase()
+      setFiltered(
+        folders.filter(folder =>
+          folder.displayName.toLowerCase().includes(lower) ||
+          folder.path.toLowerCase().includes(lower)
+        )
+      )
+    }, 200),
+    [folders]
+  )
+
+  // Cleanup debounce al desmontar
+  useEffect(() => {
+    return () => debouncedFilter.cancel()
+  }, [debouncedFilter])
 
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
 
-  const filtered = folders.filter(folder =>
-    folder.displayName.toLowerCase().includes(query.toLowerCase()) ||
-    folder.path.toLowerCase().includes(query.toLowerCase())
-  )
+  const handleChange = useCallback((e) => {
+    const value = e.target.value
+    setQuery(value)          // Input responde al instante (UX fluida)
+    debouncedFilter(value)    // Filtro pesado con debounce 200ms
+  }, [debouncedFilter])
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -36,7 +58,7 @@ function FolderSearch({ folders, onSelect, onClose }) {
             type="text"
             placeholder="Nombre de carpeta..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={handleChange}
           />
         </div>
 

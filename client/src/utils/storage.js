@@ -1,10 +1,22 @@
-const PROGRESS_KEY = 'manga-reader-progress'
-const THEME_KEY = 'manga-reader-theme'
+const PROGRESS_KEY = 'imagenvisualizador-progress'
+const THEME_KEY = 'imagenvisualizador-theme'
+const LEGACY_PROGRESS_KEY = 'manga-reader-progress'
+const LEGACY_THEME_KEY = 'manga-reader-theme'
 
 export function getProgress() {
   try {
-    const data = localStorage.getItem(PROGRESS_KEY)
-    return data ? JSON.parse(data) : {}
+    // Intentar leer nuevo key primero
+    let data = localStorage.getItem(PROGRESS_KEY)
+    if (data) return JSON.parse(data)
+    // Migrar desde key legacy
+    const legacyData = localStorage.getItem(LEGACY_PROGRESS_KEY)
+    if (legacyData) {
+      data = JSON.parse(legacyData)
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify(data))
+      localStorage.removeItem(LEGACY_PROGRESS_KEY)
+      return data
+    }
+    return {}
   } catch (error) {
     console.error('Error reading progress:', error)
     return {}
@@ -62,7 +74,17 @@ export function getContinueReading(folders = [], limit = 5) {
 
 export function getTheme() {
   try {
-    return localStorage.getItem(THEME_KEY) || 'dark'
+    // Intentar nuevo key
+    let theme = localStorage.getItem(THEME_KEY)
+    if (theme) return theme
+    // Migrar desde key legacy
+    const legacyTheme = localStorage.getItem(LEGACY_THEME_KEY)
+    if (legacyTheme) {
+      localStorage.setItem(THEME_KEY, legacyTheme)
+      localStorage.removeItem(LEGACY_THEME_KEY)
+      return legacyTheme
+    }
+    return 'dark'
   } catch (error) {
     return 'dark'
   }
